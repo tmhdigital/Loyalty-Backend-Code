@@ -52,33 +52,37 @@ export const sendNotification = async ({
   if (channel.socket) {
     const io = getIO();
 
-    const users = await User.find({
-      _id: { $in: userIds },
-    }).select("_id socketIds");
+    if (io) {
+      const users = await User.find({
+        _id: { $in: userIds },
+      }).select("_id socketIds");
 
-    const notificationMap = new Map<string, INotification[]>();
+      const notificationMap = new Map<string, INotification[]>();
 
-    notifications.forEach((notification) => {
-      const key = notification.userId.toString();
+      notifications.forEach((notification) => {
+        const key = notification.userId.toString();
 
-      if (!notificationMap.has(key)) {
-        notificationMap.set(key, []);
-      }
+        if (!notificationMap.has(key)) {
+          notificationMap.set(key, []);
+        }
 
-      notificationMap.get(key)?.push(notification);
-    });
+        notificationMap.get(key)?.push(notification);
+      });
 
-    users.forEach((user) => {
-      const userNotifications = notificationMap.get(user._id.toString());
+      users.forEach((user) => {
+        const userNotifications = notificationMap.get(user._id.toString());
 
-      if (!userNotifications?.length) return;
+        if (!userNotifications?.length) return;
 
-      user.socketIds?.forEach((socketId: string) => {
-        userNotifications.forEach((notification) => {
-          io.to(socketId).emit("newNotification", notification);
+        user.socketIds?.forEach((socketId: string) => {
+          userNotifications.forEach((notification) => {
+            io.to(socketId).emit("newNotification", notification);
+          });
         });
       });
-    });
+    } else {
+      console.warn("⚠️ Socket.io is not initialized. Skipping socket notification emit.");
+    }
   }
 
   // 3. Push notification future implementation

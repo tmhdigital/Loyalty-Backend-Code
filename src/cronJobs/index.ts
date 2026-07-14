@@ -24,7 +24,7 @@ export const startCronJobs = () => {
     cronTasks.push(vipTask);
 
     // 🔹 Tier Downgrade
-    const tierTask = cron.schedule("21 8 * * *", async () => {
+    const tierTask = cron.schedule("26 8 * * *", async () => {
       try {
         logger.info("[CRON] Tier downgrade job started");
         await downgradeInactiveTiers();

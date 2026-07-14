@@ -18,88 +18,139 @@ const sendNotificationToAllUsers = async (
   payload: IPushPayload,
   adminId: string
 ) => {
-  const { sendType, title, body, country, tier, subscriptionType, status, city } = payload;
+  const {
+    sendType,
+    title,
+    body,
+    country,
+    tier,
+    subscriptionType,
+    status,
+    city,
+  } = payload;
 
   try {
 
+
+
+    // 1️⃣ Fetch all users who have fcmToken
+    const allUsersWithToken = await User.find({
+      fcmToken: { $exists: true, $ne: null },
+    }).select("fcmToken _id role subscription status city country tier");
+
+   
+
+    // Check duplicate token in DB
+    const tokenMap: Record<string, number> = {};
+
+    allUsersWithToken.forEach((u: any) => {
+      if (!u.fcmToken) return;
+      tokenMap[u.fcmToken] = (tokenMap[u.fcmToken] || 0) + 1;
+    });
+
+
+
+  
     // 2️⃣ Build filter
-    const userFilter: any = { fcmToken: { $exists: true, $ne: null } };
+    const userFilter: any = {
+      fcmToken: { $exists: true, $ne: null },
+    };
 
     if (sendType === "MERCHANT") userFilter.role = "MERCHANT";
     else if (sendType === "USER") userFilter.role = "USER";
 
     if (city && (sendType === "MERCHANT" || sendType === "USER")) {
-      userFilter.city = { $regex: `^${city}$`, $options: "i" };
-    }
-    if (country) userFilter.country = { $regex: `^${country}$`, $options: "i" };
-    if (tier) userFilter.tier = tier.toUpperCase();
-    if (subscriptionType)
-      userFilter.subscription = { $regex: `^${subscriptionType}$`, $options: "i" };
-    if (status)
-      userFilter.status = { $regex: `^${status}$`, $options: "i" };
-
-
-
-    // 3️⃣ Fetch users after filter
-    const filteredUsers = await User.find(userFilter).select("fcmToken _id");
-
-  
-
-   const tokenSet = new Set<string>();
-const userIds: Types.ObjectId[] = [];
-
-filteredUsers.forEach((u) => {
-  if (u.fcmToken) {
-    tokenSet.add(u.fcmToken);
-    userIds.push(u._id);
-  }
-});
-
-const tokens = Array.from(tokenSet);
-
-  
-
-    if (tokens.length === 0) {
-      return {
-        sentCount: 0,
-        failedCount: 0,
-        message: "No users matched the criteria",
+      userFilter.city = {
+        $regex: `^${city}$`,
+        $options: "i",
       };
     }
 
-    // 4️⃣ Send push via Firebase
-    const message = { notification: { title, body }, tokens };
-    const response = await admin.messaging().sendEachForMulticast(message);
+    if (country) {
+      userFilter.country = {
+        $regex: `^${country}$`,
+        $options: "i",
+      };
+    }
 
-    // 5️⃣ Save notification in DB
+    if (tier) userFilter.tier = tier.toUpperCase();
+
+    if (subscriptionType) {
+      userFilter.subscription = {
+        $regex: `^${subscriptionType}$`,
+        $options: "i",
+      };
+    }
+
+    if (status) {
+      userFilter.status = {
+        $regex: `^${status}$`,
+        $options: "i",
+      };
+    }
+
+    // 3️⃣ Fetch users after filter
+    const filteredUsers = await User.find(userFilter).select(
+      "_id firstName lastName fcmToken"
+    );
+
+    const tokenSet = new Set<string>();
+    const userIds: Types.ObjectId[] = [];
+
+    filteredUsers.forEach((u: any) => {
+      if (u.fcmToken) {
+        tokenSet.add(u.fcmToken);
+        userIds.push(u._id);
+      }
+    });
+
+    const tokens = Array.from(tokenSet);
+    // Firebase payload
+    const message = {
+      notification: {
+        title,
+        body,
+      },
+      tokens,
+    };
+
+
+
+    const response = await admin
+      .messaging()
+      .sendEachForMulticast(message);
+
+
+
     await sendNotification({
       userIds,
       title,
       body,
       type: NotificationType.SYSTEM,
-      metadata: { sentBy: adminId },
-      channel: { socket: true, push: true },
+      metadata: {
+        sentBy: adminId,
+      },
+      channel: {
+        socket: true,
+        push: true,
+      },
     });
 
 
 
-    // 6️⃣ Log successful and failed tokens
     const successfulTokens: string[] = [];
     const failedTokens: string[] = [];
 
     response.responses.forEach((resp, idx) => {
-  if (resp.success) {
-    successfulTokens.push(tokens[idx]);
-  } else {
-    failedTokens.push(tokens[idx]);
+      if (resp.success) {
+        successfulTokens.push(tokens[idx]);
+      } else {
+        failedTokens.push(tokens[idx]);
+
+      }
+    });
 
 
-  }
-});
-
-
-
-    // ❌ DELETE PART REMOVED
 
     return {
       sentCount: response.successCount,
@@ -107,8 +158,7 @@ const tokens = Array.from(tokenSet);
       successfulTokens,
       failedTokens,
     };
-  } catch {
-
+  } catch  {
     throw new Error("Failed to send push notification");
   }
 };
