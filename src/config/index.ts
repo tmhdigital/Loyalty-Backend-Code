@@ -8,6 +8,8 @@ export default {
   // api_url: process.env.API_URL,
   redis_url: process.env.REDIS_URL,
   database_url: process.env.MONGODB_URI,
+  client_url: process.env.CLIENT_URL,
+  admin_url: process.env.ADMIN_URL,
   node_env: process.env.NODE_ENV,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   jwt: {

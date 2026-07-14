@@ -9,9 +9,9 @@ name: Backend CI
 
 on:
   pull_request:
-    branches: [main, master, develop]
+    branches: [main, master, dev]
   push:
-    branches: [main, master, develop]
+    branches: [main, master, dev]
 
 jobs:
   build-and-test:

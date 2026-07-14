@@ -22,26 +22,12 @@ const app = express();
 ========================================================== */
 
 const allowedOrigins = [
-  // Production
-  "https://rewaldo-admin.vercel.app",
-  "https://rewaldo-business.vercel.app",
-
-  // Local development
-  "http://localhost:3000",
-  "http://localhost:3003",
-  "http://localhost:3004",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:5500",
-  "http://localhost:5500",
-
-  // Local network
-  "http://10.10.26.175:3003",
-  "http://10.10.26.175:3004",
-  "http://31.97.117.41:3003",
-  "http://31.97.117.41:3004",
-  "http://172.17.80.1:3000",
-  "http://192.168.32.1:3000",
-];
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  ...(process.env.NODE_ENV !== "production" ? [
+    "http://localhost:3000", "http://localhost:3003", "http://localhost:3004",
+  ] : []),
+].filter(Boolean);
 
 export const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
