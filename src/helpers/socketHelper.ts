@@ -3,10 +3,7 @@ import colors from "colors";
 import { Secret } from "jsonwebtoken";
 import config from "../config";
 import { jwtHelper } from "./jwtHelper";
-import { User } from "../app/modules/user/user.model";
 import { logger } from "../shared/logger";
-
-const MAX_SOCKET_CONNECTIONS_PER_USER = 3;
 
 const socket = (io: Server) => {
   io.on("connection", async (socket: Socket) => {
@@ -30,53 +27,14 @@ const socket = (io: Server) => {
         return socket.disconnect(true);
       }
 
-      const user = await User.findById(verifiedUser.id).select("socketIds");
-      if (!user) {
-        socket.emit("auth_error", "User not found");
-        return socket.disconnect(true);
-      }
-
-      // attach user info to socket (very important)
       socket.data.userId = verifiedUser.id;
-
-      const uniqueSocketIds = Array.from(
-        new Set([...(user.socketIds || []), socket.id])
-      );
-
-      if (uniqueSocketIds.length > MAX_SOCKET_CONNECTIONS_PER_USER) {
-        const excess = uniqueSocketIds.length - MAX_SOCKET_CONNECTIONS_PER_USER;
-        const staleSocketIds = uniqueSocketIds.slice(0, excess);
-        const keptSocketIds = uniqueSocketIds.slice(excess);
-
-        await User.findByIdAndUpdate(verifiedUser.id, {
-          socketIds: keptSocketIds,
-        });
-
-        staleSocketIds.forEach((staleSocketId) => {
-          const staleSocket = io.sockets.sockets.get(staleSocketId);
-          if (staleSocket) {
-            staleSocket.disconnect(true);
-            logger.info(
-              colors.yellow(
-                `Disconnected stale socket ${staleSocketId} for user ${verifiedUser.id}`
-              )
-            );
-          }
-        });
-      } else {
-        await User.findByIdAndUpdate(verifiedUser.id, {
-          $addToSet: { socketIds: socket.id },
-        });
-      }
+      socket.join(`user:${verifiedUser.id}`);
 
       logger.info(colors.blue(`User connected: ${verifiedUser.id}`));
 
-      socket.on("disconnect", async () => {
-        await User.findByIdAndUpdate(socket.data.userId, {
-          $pull: { socketIds: socket.id },
-        });
-
+      socket.on("disconnect", () => {
         logger.info(colors.red(`User disconnected: ${socket.data.userId}`));
+        // no DB write needed — socket.io auto-leaves the room
       });
     } catch (error) {
       logger.error(error);

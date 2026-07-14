@@ -43,7 +43,7 @@ const allowedOrigins = [
   "http://192.168.32.1:3000",
 ];
 
-const corsOptions: cors.CorsOptions = {
+export const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow mobile apps, Postman, server-to-server requests
     if (!origin) {

@@ -1,14 +1,16 @@
 import mongoose from "mongoose";
-import app from "./app";
+import app,  {corsOptions}  from "./app";
 import config from "./config";
 import { errorLogger, logger } from "./shared/logger";
 import colors from "colors";
 import { Server } from "socket.io";
 import seedSuperAdmin from "./DB";
 import { socketHelper } from "./helpers/socketHelper";
-import { startCronJobs, stopCronJobs } from "./cronJobs"; 
+import { startCronJobs, stopCronJobs } from "./cronJobs";
 import { cleanupStaleSockets } from "./utils/cleanupSocket";
 import { validateEnv } from "./config/env.validation";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { pubClient, subClient, connectRedis } from "./config/redisClients";
 
 let server: any;
 
@@ -60,27 +62,27 @@ async function main() {
     });
 
     // socket setup
+    await connectRedis();
+
     const io = new Server(server, {
       pingTimeout: 60000,
-      cors: {
-        origin: "*",
-      },
+      cors: corsOptions,
+      adapter: createAdapter(pubClient, subClient),
     });
-
     socketHelper.socket(io);
 
-   
+
     global.io = io;
 
     // cleanup interval (store reference for shutdown)
     const cleanupInterval = setInterval(() => {
-    cleanupStaleSockets(io).catch((err) => {
-      logger.error("cleanupStaleSockets failed", {
-        error: err.message,
-        stack: err.stack,
+      cleanupStaleSockets(io).catch((err) => {
+        logger.error("cleanupStaleSockets failed", {
+          error: err.message,
+          stack: err.stack,
+        });
       });
-    });
-  }, 5 * 60 * 1000);
+    }, 5 * 60 * 1000);
 
     // 🔥 GRACEFUL SHUTDOWN (SIGTERM)
     process.on("SIGTERM", async () => {
