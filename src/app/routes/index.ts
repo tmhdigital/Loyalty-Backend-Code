@@ -5,6 +5,7 @@ import { AuthRoutes } from "../modules/auth/auth.routes";
 import { RuleRoutes } from "../modules/rule/rule.route";
 import { DashboardRoutes } from "../modules/dashboardOverview/dashboard.routes";
 import { SubscriptionRoutes } from "../modules/subscription/subscription.routes";
+import { KuickpayRoutes } from "../modules/kuickpay/kuickpay.routes";
 import { PackageRoutes } from "../modules/package/package.routes";
 import { SalesRepRoutes } from "../modules/salesRep/salesRep.route";
 import { AdminRoutes } from "../modules/admin/admin.route";
@@ -47,6 +48,7 @@ const apiRoutes = [
   { path: "/favorite", route: FavoriteRoutes },
 
   { path: "/history", route: TransactionRoute },
+  { path: "/kuickpay", route: KuickpayRoutes },
   { path: "/merchant", route: DashboardMerchantRoutes },
   { path: "/merchant-customer", route: MerchantCustomerListRoutes },
   { path: "/merchant-user", route: MerchantUserManagement },
