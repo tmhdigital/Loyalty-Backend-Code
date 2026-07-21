@@ -70,8 +70,55 @@ const handleIpn = catchAsync(async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Authenticated confirmation from the mobile app.
+ *
+ * The app sends us every query parameter it saw on the return URL. Because the
+ * request is authenticated we can safely tie it to the order's owner, and we no
+ * longer depend on Kuickpay's redirect page actually reaching our server (which
+ * is what was silently failing behind the tunnel/interstitial).
+ */
+const confirmPayment = catchAsync(async (req: Request, res: Response) => {
+  if (!req.user) throw new Error("User not found");
+  const userId = (req.user as any)._id || (req.user as any).id;
+
+  const payload = { ...req.query, ...req.body } as Record<string, any>;
+
+  const data = await KuickpayService.confirmOrderForUser(userId, payload);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: data.status === "completed",
+    message:
+      data.status === "completed"
+        ? "Payment confirmed and subscription activated"
+        : "Payment is not confirmed yet",
+    data,
+  });
+});
+
+/** Polling fallback: app can check an order until the IPN lands. */
+const getOrderStatus = catchAsync(async (req: Request, res: Response) => {
+  if (!req.user) throw new Error("User not found");
+  const userId = (req.user as any)._id || (req.user as any).id;
+
+  const data = await KuickpayService.getOrderStatusForUser(
+    userId,
+    req.params.orderId
+  );
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Kuickpay order status retrieved successfully",
+    data,
+  });
+});
+
 export const KuickpayController = {
   initiateCheckout,
   handleReturn,
   handleIpn,
+  confirmPayment,
+  getOrderStatus,
 };

@@ -11,8 +11,14 @@ import {
   getKuickpayTokenUrl,
   KUICKPAY_RESPONSE_CODE_SUCCESS,
   toKuickpayLocalMobile,
-  verifyReturnSignature,
+  verifyReturnSignatureDetailed,
 } from "./kuickpay.util";
+import { logger } from "../../../shared/logger";
+import {
+  calculateUsablePoints,
+  grantReferralBonusOnSubscription,
+} from "../referral/referral.helper";
+
 import {
   KuickpayInitiateResponse,
   KuickpayTokenResponse,
@@ -69,20 +75,18 @@ const createKuickpayCheckout = async (
     );
   }
 
+  // Points earned from referrals are applied as a discount here, capped at 80%
+  // of the package price (shared rule — see referral.helper.ts).
   const userPoints = user.points || 0;
-  let finalPrice = pkg.price;
-  const maxDiscount = pkg.price * 0.8;
-  const usablePoints = Math.min(userPoints, maxDiscount);
-  if (usablePoints > 0) {
-    finalPrice -= usablePoints;
-  }
+  const usablePoints = calculateUsablePoints(pkg.price, userPoints);
+  const finalPrice = pkg.price - usablePoints;
 
   // Kuickpay expects Amount/GrossAmount/TaxAmount as INTEGER PAISA — no decimal
   // point (Rupees x 100). Confirmed against Kuickpay's own working Postman
   // example: Amount="10000" for a Rs 100 transaction.
   const amountStr = Math.round(finalPrice * 100).toString();
-  const grossAmountStr = Math.round(pkg.price * 100).toString();
-  const taxAmountStr = "0";
+const grossAmountStr = Math.round(pkg.price * 100).toString();
+const taxAmountStr = "0";
 
   const institutionID = config.kuickpay.institutionId as string;
   const securedKey = config.kuickpay.securedKey as string;
@@ -150,94 +154,174 @@ const createKuickpayCheckout = async (
 };
 
 // =========================
-// 3) Activate subscription once payment is confirmed (used by BOTH return + IPN,
-//    guarded to be idempotent since both can fire for the same order)
+// 3) Activate subscription once payment is confirmed.
+//    Called from THREE places (Kuickpay's browser redirect, Kuickpay's
+//    server-to-server IPN, and the app's own authenticated /confirm call).
+//    Whichever arrives first wins; the rest are no-ops.
 // =========================
 const activateKuickpayOrder = async (params: {
   orderId: string;
   transactionId: string;
   responseCode: string;
   raw: Record<string, unknown>;
-  via: "return" | "ipn";
-}): Promise<{ success: boolean; alreadyProcessed?: boolean }> => {
-  const { orderId, transactionId, responseCode, raw, via } = params;
+  via: "return" | "ipn" | "app-confirm";
+  signatureVerified: boolean;
+  signatureVariant?: string | null;
+}): Promise<{
+  success: boolean;
+  alreadyProcessed?: boolean;
+  status: "completed" | "failed";
+}> => {
+  const {
+    orderId,
+    transactionId,
+    responseCode,
+    raw,
+    via,
+    signatureVerified,
+    signatureVariant,
+  } = params;
 
   const order = await KuickpayOrder.findOne({ orderId });
   if (!order) {
     throw new Error(`Unknown Kuickpay order: ${orderId}`);
   }
 
-  const isSuccess = responseCode === KUICKPAY_RESPONSE_CODE_SUCCESS;
-
   if (order.status === "completed") {
-    return { success: true, alreadyProcessed: true };
+    logger.info(
+      `Kuickpay order ${orderId} already completed (duplicate ${via} callback) — ignoring`
+    );
+    return { success: true, alreadyProcessed: true, status: "completed" };
   }
 
-  if (via === "return") {
-    order.rawReturn = raw;
-  } else {
+  const isSuccess = responseCode === KUICKPAY_RESPONSE_CODE_SUCCESS;
+
+  if (via === "ipn") {
     order.rawIpn = raw;
+  } else {
+    order.rawReturn = raw;
   }
   order.transactionId = transactionId;
   order.responseCode = responseCode;
+  order.signatureVerified = signatureVerified;
+  if (signatureVariant) order.signatureVariant = signatureVariant;
 
   if (!isSuccess) {
     order.status = "failed";
     await order.save();
-    return { success: false };
+    logger.warn(
+      `Kuickpay order ${orderId} marked FAILED via ${via} (ResponseCode=${responseCode})`
+    );
+    return { success: false, status: "failed" };
   }
-
-  order.status = "completed";
-  await order.save();
 
   const pkg = await Package.findById(order.package);
   if (!pkg) throw new Error("Package not found while activating subscription");
 
-  // Prevent double-creation if both return + IPN race each other
-  const existingSub = await Subscription.findOne({ subscriptionId: transactionId });
-  if (existingSub) {
-    return { success: true, alreadyProcessed: true };
+  // ---- Create the subscription (idempotent) -------------------------------
+  // customerId holds our own orderId, which is unique per checkout, so it is a
+  // safer dedupe key than the gateway transactionId.
+  let subscription = await Subscription.findOne({
+    $or: [{ customerId: orderId }, { subscriptionId: transactionId }],
+  });
+
+  if (!subscription) {
+    try {
+      subscription = await Subscription.create({
+        user: order.user,
+        package: order.package,
+        price: order.amount,
+        subscriptionId: transactionId,
+        customerId: orderId,
+        trxId: transactionId,
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: calculateEndDate(pkg.duration),
+        status: "active",
+        source: "kuickpay",
+        remaining: 1,
+      });
+    } catch (error: any) {
+      // Duplicate key = another callback beat us to it. Re-read and continue.
+      if (error?.code === 11000) {
+        subscription = await Subscription.findOne({
+          $or: [{ customerId: orderId }, { subscriptionId: transactionId }],
+        });
+      } else {
+        logger.error(
+          `Kuickpay order ${orderId}: failed to create subscription`,
+          error
+        );
+        throw error;
+      }
+    }
   }
 
-  await Subscription.create({
-    user: order.user,
-    package: order.package,
-    price: order.amount,
-    subscriptionId: transactionId,
-    customerId: orderId,
-    trxId: transactionId,
-    currentPeriodStart: new Date(),
-    currentPeriodEnd: calculateEndDate(pkg.duration),
-    status: "active",
-    source: "kuickpay",
-    remaining: 1,
+  // ---- Mark the order completed ------------------------------------------
+  order.status = "completed";
+  order.activatedVia = via;
+  if (subscription?._id) {
+    order.subscription = subscription._id as any;
+  }
+  await order.save();
+
+  // ---- Reflect it on the user --------------------------------------------
+  // Points that were used as a discount are now actually spent — this was
+  // being calculated at checkout time but never deducted.
+  const userUpdate: Record<string, unknown> = {
+    $set: { subscription: "active", paymentStatus: "paid" },
+  };
+  if (order.pointsUsed && order.pointsUsed > 0) {
+    (userUpdate as any).$inc = { points: -order.pointsUsed };
+  }
+  await User.findByIdAndUpdate(order.user, userUpdate);
+
+  // ---- Referral payout ----------------------------------------------------
+  // If this buyer signed up with someone's referral code, that referrer now
+  // earns 20% of what was paid, as points. This was implemented for the Stripe
+  // and salesRep flows but was missing here, so a Kuickpay purchase never
+  // rewarded the referrer and their referral screen stayed at "+0.0".
+  // The helper is idempotent, so duplicate callbacks cannot double-pay.
+  // Base the 20% on the PACKAGE price (grossAmount), not on what the buyer
+  // actually paid after their own points discount — otherwise a discounted
+  // purchase would shrink the next referrer's reward. This matches the Stripe
+  // flow, which uses the plan price.
+  await grantReferralBonusOnSubscription({
+    subscribedUserId: order.user,
+    subscriptionPrice: order.grossAmount,
   });
 
-  await User.findByIdAndUpdate(order.user, {
-    subscription: "active",
-    paymentStatus: "paid",
-  });
+  logger.info(
+    `Kuickpay order ${orderId} ACTIVATED via ${via} (signatureVerified=${signatureVerified}) — subscription ${subscription?._id}`
+  );
 
-  return { success: true };
+  return { success: true, status: "completed" };
 };
 
+/**
+ * Shared entry point for Kuickpay's own callbacks (redirect + IPN).
+ * These are unauthenticated, so a valid signature is mandatory here.
+ */
 const verifyAndActivate = async (
   query: Record<string, any>,
   via: "return" | "ipn"
 ) => {
-  const orderId = query.OrderId || query.orderId;
-  const transactionId = query.TransactionId || query.transactionId;
+  const orderId = query.OrderId || query.orderId || query.OrderID;
+  const transactionId =
+    query.TransactionId || query.transactionId || query.TransactionID;
   const responseCode = query.ResponseCode || query.responseCode;
   const signature = query.Signature || query.signature;
 
-  const validSignature = verifyReturnSignature({
+  const check = verifyReturnSignatureDetailed({
     orderId,
     transactionId,
     responseCode,
     signature,
   });
 
-  if (!validSignature) {
+  if (!check.valid) {
+    logger.error(
+      `Kuickpay ${via} signature mismatch for order ${orderId}. received=${signature} expected(documented)=${check.expected}`
+    );
     throw new Error("Invalid Kuickpay signature");
   }
 
@@ -247,11 +331,129 @@ const verifyAndActivate = async (
     responseCode,
     raw: query,
     via,
+    signatureVerified: true,
+    signatureVariant: check.variant,
   });
+};
+
+/**
+ * Called by the MOBILE APP right after its WebView lands on the return URL.
+ *
+ * Why this exists: the return page and the IPN both travel over the public
+ * internet and can silently fail (tunnel interstitial pages, IPN not reachable,
+ * webview never actually loading our host, etc). When that happens the payment
+ * succeeds at Kuickpay but the user never gets their subscription — exactly the
+ * bug we were seeing. This endpoint is authenticated, so we already know the
+ * caller, and we can only ever activate an order that belongs to them.
+ */
+const confirmOrderForUser = async (
+  userId: string,
+  payload: Record<string, any>
+) => {
+  const orderId = payload.OrderId || payload.orderId || payload.OrderID;
+  if (!orderId) throw new Error("orderId is required");
+
+  const order = await KuickpayOrder.findOne({ orderId });
+  if (!order) throw new Error(`Unknown Kuickpay order: ${orderId}`);
+
+  if (String(order.user) !== String(userId)) {
+    throw new Error("This order does not belong to the current user");
+  }
+
+  if (order.status === "completed") {
+    return {
+      status: "completed" as const,
+      alreadyProcessed: true,
+      orderId,
+      subscriptionId: order.subscription || null,
+    };
+  }
+
+  const transactionId =
+    payload.TransactionId ||
+    payload.transactionId ||
+    payload.TransactionID ||
+    order.transactionId;
+  const responseCode =
+    payload.ResponseCode || payload.responseCode || order.responseCode;
+  const signature = payload.Signature || payload.signature;
+
+  if (!transactionId || !responseCode) {
+    throw new Error("transactionId and responseCode are required");
+  }
+
+  const check = verifyReturnSignatureDetailed({
+    orderId,
+    transactionId,
+    responseCode,
+    signature,
+  });
+
+  if (!check.valid) {
+    logger.warn(
+      `Kuickpay app-confirm signature mismatch for order ${orderId}. received=${signature} expected(documented)=${check.expected}`
+    );
+
+    if (!config.kuickpay.allowUnverifiedConfirm) {
+      // Don't activate — but don't lose the payment either. The IPN can still
+      // complete it, and the app can poll the status endpoint.
+      return {
+        status: order.status,
+        alreadyProcessed: false,
+        orderId,
+        signatureVerified: false,
+        message:
+          "Payment received but could not be verified yet. It will be confirmed shortly.",
+      };
+    }
+  }
+
+  const result = await activateKuickpayOrder({
+    orderId,
+    transactionId,
+    responseCode,
+    raw: payload,
+    via: "app-confirm",
+    signatureVerified: check.valid,
+    signatureVariant: check.variant,
+  });
+
+  const refreshed = await KuickpayOrder.findOne({ orderId });
+
+  return {
+    status: result.status,
+    alreadyProcessed: result.alreadyProcessed ?? false,
+    orderId,
+    signatureVerified: check.valid,
+    subscriptionId: refreshed?.subscription || null,
+  };
+};
+
+/**
+ * Lightweight polling endpoint so the app can wait for the IPN when the
+ * confirm call could not activate the order on its own.
+ */
+const getOrderStatusForUser = async (userId: string, orderId: string) => {
+  const order = await KuickpayOrder.findOne({ orderId });
+  if (!order) throw new Error(`Unknown Kuickpay order: ${orderId}`);
+  if (String(order.user) !== String(userId)) {
+    throw new Error("This order does not belong to the current user");
+  }
+
+  return {
+    orderId: order.orderId,
+    status: order.status,
+    transactionId: order.transactionId || null,
+    responseCode: order.responseCode || null,
+    activatedVia: order.activatedVia || null,
+    subscriptionId: order.subscription || null,
+  };
 };
 
 export const KuickpayService = {
   getAuthToken,
   createKuickpayCheckout,
   verifyAndActivate,
+  confirmOrderForUser,
+  getOrderStatusForUser,
 };

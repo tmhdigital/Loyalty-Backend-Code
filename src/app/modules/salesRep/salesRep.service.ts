@@ -13,6 +13,7 @@ import { Package } from "../package/package.model";
 import { sendNotification } from "../../../helpers/notificationsHelper";
 import { NotificationType } from "../notification/notification.model";
 import Referral from "../referral/referral.model";
+import { grantReferralBonusOnSubscription } from "../referral/referral.helper";
 import PointTransaction from "../pointTransaction/pointTransaction.model";
 import { sendPushNotification } from "../../../helpers/sendPushNotification";
 import { IPackage } from "../package/package.interface";
@@ -393,59 +394,11 @@ const activateAccount = async (id: string) => {
   io.emit(`salesActivation::${salesRep.customerId.toString()}`, { status: "active" });
 
   // 9️⃣ Referral Bonus Logic (20%)
-  const referralResult = await Referral.findOne({
-    referredUser: salesRep.customerId,
-    completed: false,
+  // Shared implementation — see referral.helper.ts
+  await grantReferralBonusOnSubscription({
+    subscribedUserId: salesRep.customerId,
+    subscriptionPrice: subscriptionData.price || 0,
   });
-
-  if (referralResult) {
-    const referrerId = referralResult.referrer;
-  
-
-    const subscriptionPrice = subscriptionData.price || 0;
-    const referralPoints = Math.round(subscriptionPrice * 0.2);
-
-    if (referralPoints > 0) {
-
-      await User.findByIdAndUpdate(referrerId, {
-        $inc: { points: referralPoints },
-        $push: { referralBonusGivenFor: salesRep.customerId },
-      });
-
- 
-      await PointTransaction.create({
-        user: referrerId,
-        type: "EARN",
-        source: "REFERRAL",
-        referral: referralResult._id,
-        points: referralPoints,
-        note: `Earned ${referralPoints} points from referral subscription (${salesRep.customerId})`,
-      });
-
-      const referredUser = await User.findById(salesRep.customerId).select("firstName lastName");
-      const referrerUser = await User.findById(referrerId).select("firstName lastName");
-
-      const referredUserName = `${referredUser?.firstName || ""} ${referredUser?.lastName || ""}`.trim();
-      const referrerUserName = `${referrerUser?.firstName || ""} ${referrerUser?.lastName || ""}`.trim();
-
-      await sendNotification({
-        userIds: [referrerId.toString()],
-        title: "Referral Bonus Earned",
-        body: `${referredUserName} has joined using your referral code. You earned ${referralPoints} points!`,
-        type: NotificationType.REFERRAL,
-      });
-
-      await sendNotification({
-        userIds: [salesRep.customerId.toString()],
-        title: "Referral Applied",
-        body: `You have joined using referral code of ${referrerUserName}.`,
-        type: NotificationType.REFERRAL,
-      });
-
-      referralResult.completed = true;
-      await referralResult.save();
-    }
-  }
 
   return subscription;
 };

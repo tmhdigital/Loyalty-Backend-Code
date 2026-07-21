@@ -13,6 +13,10 @@ export type IKuickpayOrder = {
   responseCode?: string;
   rawReturn?: Record<string, unknown>;
   rawIpn?: Record<string, unknown>;
+  signatureVerified?: boolean;
+  signatureVariant?: string;
+  activatedVia?: "return" | "ipn" | "app-confirm";
+  subscription?: Types.ObjectId;
 };
 
 const kuickpayOrderSchema = new Schema<IKuickpayOrder>(
@@ -33,11 +37,16 @@ const kuickpayOrderSchema = new Schema<IKuickpayOrder>(
     responseCode: { type: String },
     rawReturn: { type: Schema.Types.Mixed },
     rawIpn: { type: Schema.Types.Mixed },
+    signatureVerified: { type: Boolean, default: false },
+    signatureVariant: { type: String },
+    activatedVia: { type: String, enum: ["return", "ipn", "app-confirm"] },
+    subscription: { type: Schema.Types.ObjectId, ref: "Subscription" },
   },
   { timestamps: true }
 );
 
 kuickpayOrderSchema.index({ status: 1, createdAt: 1 });
+kuickpayOrderSchema.index({ user: 1, createdAt: -1 });
 
 export const KuickpayOrder = model<IKuickpayOrder>(
   "KuickpayOrder",

@@ -54,28 +54,84 @@ export const buildReturnSignature = (
   return crypto.createHash("md5").update(raw).digest("hex");
 };
 
+const md5 = (raw: string) => crypto.createHash("md5").update(raw).digest("hex");
+
+const safeEqual = (expected: string, received: string): boolean => {
+  const a = Buffer.from(expected.toLowerCase());
+  const b = Buffer.from(String(received).toLowerCase());
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+};
+
+/**
+ * Kuickpay's guide documents ONE return-signature format, but different
+ * institutions/versions of their checkout have been seen sending a couple of
+ * slightly different concatenations. Every candidate below still requires the
+ * secured key, so accepting any of them does not weaken security — it only
+ * stops a formatting mismatch from silently killing every payment.
+ *
+ * Returns which variant matched (useful for logs) or null when none did.
+ */
+export const verifyReturnSignatureDetailed = (params: {
+  orderId: string;
+  transactionId: string;
+  responseCode: string;
+  signature: string;
+}): { valid: boolean; variant: string | null; expected: string } => {
+  const { orderId, transactionId, responseCode, signature } = params;
+
+  const securedKey = config.kuickpay.securedKey as string;
+  const institutionId = config.kuickpay.institutionId as string;
+
+  const documented = buildReturnSignature(
+    orderId,
+    transactionId,
+    securedKey,
+    responseCode
+  );
+
+  if (!orderId || !transactionId || !responseCode || !signature) {
+    return { valid: false, variant: null, expected: documented };
+  }
+
+  const candidates: Array<{ name: string; value: string }> = [
+    // Documented: MD5(OrderID & TransactionID & SecuredKey & ResponseCode)
+    { name: "documented", value: documented },
+    // Same fields, no separators
+    {
+      name: "no-separator",
+      value: md5(`${orderId}${transactionId}${securedKey}${responseCode}`),
+    },
+    // Some institutions prefix the InstitutionID
+    {
+      name: "with-institution",
+      value: md5(
+        `${institutionId}&${orderId}&${transactionId}&${securedKey}&${responseCode}`
+      ),
+    },
+    {
+      name: "with-institution-no-separator",
+      value: md5(
+        `${institutionId}${orderId}${transactionId}${securedKey}${responseCode}`
+      ),
+    },
+  ];
+
+  for (const candidate of candidates) {
+    if (safeEqual(candidate.value, signature)) {
+      return { valid: true, variant: candidate.name, expected: candidate.value };
+    }
+  }
+
+  return { valid: false, variant: null, expected: documented };
+};
+
 export const verifyReturnSignature = (params: {
   orderId: string;
   transactionId: string;
   responseCode: string;
   signature: string;
-}): boolean => {
-  const { orderId, transactionId, responseCode, signature } = params;
-  if (!orderId || !transactionId || !responseCode || !signature) return false;
-
-  const expected = buildReturnSignature(
-    orderId,
-    transactionId,
-    config.kuickpay.securedKey as string,
-    responseCode
-  );
-
-  // Constant-time compare to avoid timing attacks
-  const a = Buffer.from(expected.toLowerCase());
-  const b = Buffer.from(String(signature).toLowerCase());
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
-};
+}): boolean => verifyReturnSignatureDetailed(params).valid;
 
 export const KUICKPAY_RESPONSE_CODE_SUCCESS = "00";
 

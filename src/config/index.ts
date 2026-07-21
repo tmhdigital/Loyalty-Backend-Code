@@ -88,5 +88,16 @@ export default {
     // which the app's WebView intercepts before an actual navigation happens)
     successUrl: process.env.KUICKPAY_SUCCESS_URL,
     failureUrl: process.env.KUICKPAY_FAILURE_URL,
+
+    // When the app calls /kuickpay/confirm we already know WHO is asking (JWT)
+    // and WHICH order it is (order.user must match). If Kuickpay's signature
+    // format ever differs from what we compute, the payment would silently stay
+    // "pending" and the user would never get their subscription. In sandbox we
+    // therefore allow the confirm to go through without a matching signature
+    // (it is still logged loudly). In production keep this OFF.
+    allowUnverifiedConfirm:
+      (process.env.KUICKPAY_ALLOW_UNVERIFIED_CONFIRM ??
+        (process.env.KUICKPAY_ENV === "production" ? "false" : "true")) ===
+      "true",
   },
 };

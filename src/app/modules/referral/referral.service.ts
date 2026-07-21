@@ -121,6 +121,10 @@ const getMyReferredUser = async (userId: string) => {
             $project: {
                 _id: 1,
                 pointsEarned: 1,
+                // Whether the referral has actually paid out yet. A referred user
+                // who has signed up but not subscribed shows completed: false and
+                // pointsEarned: 0 — that is expected, not a bug.
+                completed: 1,
                 distance: 1,
                 "user._id": 1,
                 "user.firstName": 1,
