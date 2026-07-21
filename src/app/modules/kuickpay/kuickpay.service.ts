@@ -1,5 +1,4 @@
 import axios from "axios";
-import { Types } from "mongoose";
 import config from "../../../config";
 import { Package } from "../package/package.model";
 import { User } from "../user/user.model";
@@ -78,10 +77,12 @@ const createKuickpayCheckout = async (
     finalPrice -= usablePoints;
   }
 
-  // Kuickpay expects a plain numeric amount string, 2 decimal places
-  const amountStr = finalPrice.toFixed(2);
-  const grossAmountStr = pkg.price.toFixed(2);
-  const taxAmountStr = "0.00";
+  // Kuickpay expects Amount/GrossAmount/TaxAmount as INTEGER PAISA — no decimal
+  // point (Rupees x 100). Confirmed against Kuickpay's own working Postman
+  // example: Amount="10000" for a Rs 100 transaction.
+  const amountStr = Math.round(finalPrice * 100).toString();
+  const grossAmountStr = Math.round(pkg.price * 100).toString();
+  const taxAmountStr = "0";
 
   const institutionID = config.kuickpay.institutionId as string;
   const securedKey = config.kuickpay.securedKey as string;
@@ -96,7 +97,11 @@ const createKuickpayCheckout = async (
     throw new Error("KUICKPAY_CHECKOUT_IPN_URL not configured");
   }
 
-  const orderId = `RWD-${Date.now()}-${new Types.ObjectId().toString().slice(-6)}`;
+  // Kuickpay requires OrderID: numeric only, max 18 characters.
+  // Millisecond timestamp (13 digits) + 3 random digits — unique and within limit.
+  const orderId = (
+    Date.now().toString() + Math.floor(Math.random() * 1000).toString().padStart(3, "0")
+  ).slice(0, 18);
 
   await KuickpayOrder.create({
     orderId,
