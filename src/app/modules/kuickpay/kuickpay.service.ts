@@ -84,9 +84,10 @@ const createKuickpayCheckout = async (
   // Kuickpay expects Amount/GrossAmount/TaxAmount as INTEGER PAISA — no decimal
   // point (Rupees x 100). Confirmed against Kuickpay's own working Postman
   // example: Amount="10000" for a Rs 100 transaction.
-  const amountStr = Math.round(finalPrice * 100).toString();
-const grossAmountStr = Math.round(pkg.price * 100).toString();
-const taxAmountStr = "0";
+// Kuickpay expects decimal amount (e.g. 102.00)
+const amountStr = Number(finalPrice).toFixed(2);
+const grossAmountStr = Number(pkg.price).toFixed(2);
+const taxAmountStr = Number(0).toFixed(2);
 
   const institutionID = config.kuickpay.institutionId as string;
   const securedKey = config.kuickpay.securedKey as string;
