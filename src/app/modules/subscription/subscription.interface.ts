@@ -11,7 +11,7 @@ export type ISubscription = {
     status: 'expired' | 'active' | 'cancel';
     currentPeriodStart: Date;
     currentPeriodEnd: Date;
-    source: 'online' | 'salesRep';
+    source: 'online' | 'salesRep' | 'kuickpay' | 'free' | 'manual';
     
 };
 

@@ -212,6 +212,15 @@ const userSchema = new Schema<IUser, UserModal>(
 
     hasViewedReferral: { type: Boolean, default: false },
 
+    // Users this account has already been paid a referral bonus for.
+    // This was being written to by the referral logic but was NEVER declared in
+    // the schema, so mongoose (strict mode) silently dropped every write and the
+    // "don't pay the same bonus twice" guard never actually worked.
+    referralBonusGivenFor: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+
     notificationSettings: {
       promotionalEmails: { type: Boolean, default: true },
       appNotifications: { type: Boolean, default: true },

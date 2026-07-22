@@ -119,6 +119,7 @@ const createPromotion = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+
 const getAllPromotions = catchAsync(async (req: Request, res: Response) => {
   const data = await PromotionService.getAllPromotionsFromDB(req.query);
   sendResponse(res, {

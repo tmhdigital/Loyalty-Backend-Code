@@ -163,11 +163,13 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
 const newAccessToken = catchAsync(async (req: Request, res: Response) => {
   const device = req.body.device;
 
+
+  if (!device) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Device type is required');
+  }
+
   const refreshToken =
     req.cookies?.[getRefreshCookieName(device)] ||
-    req.cookies?.refreshToken_admin ||
-    req.cookies?.refreshToken_business ||
-    req.cookies?.refreshToken ||
     req.body.refreshToken;
 
   if (!refreshToken) {
@@ -257,13 +259,18 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
 
   res.clearCookie(cookieName, {
     httpOnly: true,
-    secure: config.node_env === "production",
-    sameSite:
-      config.node_env === "production" ? "none" : "lax",
-    path: "/",
+    secure: false,     
+    sameSite: 'lax',   
+    path: '/',
   });
 
-  await AuthService.logoutUserFromDB((req.user as any)?._id);
+
+  const userId = (req.user as any)?._id;
+  if (!userId) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not authenticated');
+  }
+
+  await AuthService.logoutUserFromDB(userId);
 
   sendResponse(res, {
     success: true,
@@ -271,7 +278,6 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
     message: "Logout successful",
   });
 });
-
 /* ----------------------------------------
    UPLOAD DOCUMENT IMAGES
 ---------------------------------------- */

@@ -6,10 +6,10 @@ import stripe from "../../../config/stripe";
 import { User } from "../user/user.model";
 import Stripe from "stripe";
 import { Types } from "mongoose";
-import Referral from "../referral/referral.model";
-import PointTransaction from "../pointTransaction/pointTransaction.model";
-import { sendNotification } from "../../../helpers/notificationsHelper";
-import { NotificationType } from "../notification/notification.model";
+import { grantReferralBonusOnSubscription } from "../referral/referral.helper";
+// import PointTransaction from "../pointTransaction/pointTransaction.model";
+// import { sendNotification } from "../../../helpers/notificationsHelper";
+// import { NotificationType } from "../notification/notification.model";
 import { calculateEndDate } from "../../../helpers/dateHelper";
 import { SUBSCRIPTION_STATUS } from "../../../enums/user";
 
@@ -180,82 +180,16 @@ const activateSubscriptionInDB = async (
 
 
   // ======================================================
-  // 🔥 Referral Bonus (20% to referrer ONLY)
+  // 🔥 Referral Bonus (20% to referrer)
   // ======================================================
-
-
-
- const existingSubscriptionsCount = await Subscription.countDocuments({
-  user: userId,
-});
-
-const userDoc = await User.findById(userId);
-
-if (
-  existingSubscriptionsCount === 1 &&
-  userDoc?.referredInfo?.referredUserId &&
-  userDoc.role === "USER"
-) {
-  const referrerId = userDoc.referredInfo.referredUserId;
-
-  const subscriptionPrice = subscriptionData.price || 0;
-  const referralPoints = Math.round(subscriptionPrice * 0.2);
-
-  if (referralPoints > 0) {
-
-    // ============================
-    // 🔥 ATOMIC FIX (IMPORTANT)
-    // ============================
-    const updatedReferrer = await User.findOneAndUpdate(
-      {
-        _id: referrerId,
-        referralBonusGivenFor: { $ne: userId } // 👈 prevent duplicate bonus
-      },
-      {
-        $inc: { points: referralPoints },
-        $addToSet: { referralBonusGivenFor: userId }
-      },
-      { new: true }
-    );
-
-    // ❗ already given or no update
-    if (!updatedReferrer) {
-      return subscription;
-    }
-
-    // ============================
-    // 🔍 Referral record
-    // ============================
-    const referralRecord = await Referral.findOne({
-      referrer: referrerId,
-      referredUser: userId,
-    });
-
-    // ============================
-    // 🧾 Point Transaction log
-    // ============================
-    await PointTransaction.create({
-      user: referrerId,
-      type: "EARN",
-      source: "REFERRAL",
-      referral: referralRecord?._id,
-      points: referralPoints,
-      note: `Earned ${referralPoints} points from referral subscription (${userId})`,
-    });
-
-    // ============================
-    // 🔔 Notification
-    // ============================
-    await sendNotification({
-      userIds: [referrerId.toString()],
-      title: "Referral Bonus Earned",
-      body: `You earned ${referralPoints} points from your referral's subscription.`,
-      type: NotificationType.REFERRAL,
-    });
-  }
-}
-
-
+  // Moved into referral.helper.ts so Stripe, Kuickpay and salesRep all behave
+  // identically. The old inline copy here never set Referral.completed = true,
+  // which is why referral rows stayed "completed: false" in the database even
+  // after a bonus was paid.
+  await grantReferralBonusOnSubscription({
+    subscribedUserId: userId,
+    subscriptionPrice: subscriptionData.price || 0,
+  });
 
   return subscription;
 };
@@ -489,4 +423,3 @@ export const SubscriptionService = {
 
 
 // batter thinkg but any time need then apply this logic
-

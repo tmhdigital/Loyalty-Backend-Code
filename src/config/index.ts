@@ -66,4 +66,41 @@ export default {
     url: process.env.M3_SMS_URL,
   },
   frontendUrl: process.env.FRONTEND_URL,
+
+  kuickpay: {
+    // "sandbox" | "production" — controls which Kuickpay base URL is used
+    env: process.env.KUICKPAY_ENV || "sandbox",
+
+    // Sandbox / test environment (as per Kuickpay Hosted Checkout Merchant Implementation Guide)
+    sandboxBaseUrl:
+      process.env.KUICKPAY_SANDBOX_BASE_URL ||
+      "https://testcheckout.kuickpay.com",
+
+    // Production base URL — MUST be confirmed with Kuickpay/Bank Alfalah before go-live,
+    // the guide only documents the sandbox host. Do not assume this value in production.
+    productionBaseUrl: process.env.KUICKPAY_PRODUCTION_BASE_URL || "",
+
+    institutionId: process.env.KUICKPAY_INSTITUTION_ID,
+    securedKey: process.env.KUICKPAY_SECURED_KEY,
+    merchantName: process.env.KUICKPAY_MERCHANT_NAME || "Rewaldo",
+
+    // Where our OWN backend receives the server-to-server IPN (must be public HTTPS)
+    checkoutIpnUrl: process.env.KUICKPAY_CHECKOUT_IPN_URL,
+
+    // Where the mobile webview is redirected after payment (our backend "bridge" endpoints,
+    // which the app's WebView intercepts before an actual navigation happens)
+    successUrl: process.env.KUICKPAY_SUCCESS_URL,
+    failureUrl: process.env.KUICKPAY_FAILURE_URL,
+
+    // When the app calls /kuickpay/confirm we already know WHO is asking (JWT)
+    // and WHICH order it is (order.user must match). If Kuickpay's signature
+    // format ever differs from what we compute, the payment would silently stay
+    // "pending" and the user would never get their subscription. In sandbox we
+    // therefore allow the confirm to go through without a matching signature
+    // (it is still logged loudly). In production keep this OFF.
+    allowUnverifiedConfirm:
+      (process.env.KUICKPAY_ALLOW_UNVERIFIED_CONFIRM ??
+        (process.env.KUICKPAY_ENV === "production" ? "false" : "true")) ===
+      "true",
+  },
 };

@@ -52,7 +52,7 @@ const subscriptionSchema = new Schema<ISubscription, SubscriptionModel>(
     },
     source: {
       type: String,
-      enum: ["online", "salesRep", "free", "manual"], // ✅ manual add
+      enum: ["online", "salesRep", "free", "manual", "kuickpay"], // ✅ kuickpay added
       default: "online",
     },
   },

@@ -122,6 +122,7 @@ export interface IUser {
     referredBy: string;
     referredUserId?: Types.ObjectId;
   };
+  referralBonusGivenFor?: Types.ObjectId[];
   salesRep?: string;
   role?: string;
   phone?: string;
