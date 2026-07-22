@@ -7,9 +7,9 @@ import { User } from "../user/user.model";
 import Stripe from "stripe";
 import { Types } from "mongoose";
 import { grantReferralBonusOnSubscription } from "../referral/referral.helper";
-import PointTransaction from "../pointTransaction/pointTransaction.model";
-import { sendNotification } from "../../../helpers/notificationsHelper";
-import { NotificationType } from "../notification/notification.model";
+// import PointTransaction from "../pointTransaction/pointTransaction.model";
+// import { sendNotification } from "../../../helpers/notificationsHelper";
+// import { NotificationType } from "../notification/notification.model";
 import { calculateEndDate } from "../../../helpers/dateHelper";
 import { SUBSCRIPTION_STATUS } from "../../../enums/user";
 

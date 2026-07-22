@@ -16,10 +16,10 @@ const serviceAccount = {
   universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN,
 } as admin.ServiceAccount;
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+if (!admin.apps.length && serviceAccount.projectId) {
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+} else if (!admin.apps.length) {
+  console.warn("⚠️ Firebase not initialized — FIREBASE_PROJECT_ID missing");
 }
 
 export default admin;
