@@ -64,11 +64,16 @@ const safeEqual = (expected: string, received: string): boolean => {
 };
 
 /**
- * Kuickpay's guide documents ONE return-signature format, but different
- * institutions/versions of their checkout have been seen sending a couple of
- * slightly different concatenations. Every candidate below still requires the
- * secured key, so accepting any of them does not weaken security — it only
- * stops a formatting mismatch from silently killing every payment.
+ * Kuickpay's Merchant Implementation Guide (v3.0, Table 1.2 / section 8.1)
+ * documents the return signature as:
+ *     MD5(OrderID & TransactionID & KuickpaySecuredKey & ResponseCode)
+ * This is exactly what `buildReturnSignature` (the "documented" variant below)
+ * produces, and it is what should match in practice.
+ *
+ * The extra variants are kept only as a diagnostic safety net for older/other
+ * institution configs — every one of them still requires the secured key, so
+ * accepting any of them does not weaken security. In production, expect the
+ * "documented" variant to match; the others should effectively never fire.
  *
  * Returns which variant matched (useful for logs) or null when none did.
  */
