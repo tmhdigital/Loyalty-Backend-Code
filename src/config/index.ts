@@ -59,6 +59,13 @@ export default {
     apiKey: process.env.VEEVOTECH_API_KEY,
     senderId: process.env.VEEVOTECH_SENDER_ID,
   },
+  spaces: {
+    key: process.env.DO_SPACES_KEY,
+    secret: process.env.DO_SPACES_SECRET,
+    endpoint: process.env.DO_SPACES_ENDPOINT,
+    bucket: process.env.DO_SPACES_BUCKET,
+    cdnUrl: process.env.DO_SPACES_CDN_URL,
+  },
   m3Sms: {
     userId: process.env.M3_SMS_USER_ID,
     password: process.env.M3_SMS_PASSWORD,
