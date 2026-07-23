@@ -9,7 +9,7 @@ import { socketHelper } from "./helpers/socketHelper";
 import { startCronJobs, stopCronJobs } from "./cronJobs"; 
 import { cleanupStaleSockets } from "./utils/cleanupSocket";
 import { validateEnv } from "./config/env.validation";
-import { initSocket, getIO } from "./utils/socket";
+// import { initSocket, getIO } from "./utils/socket";
 let server: any;
 
 // uncaught exception
