@@ -28,7 +28,7 @@ export const validateFormData = (schema: ZodSchema) => {
       //  Boolean conversion
       if (req.files) {
         const filesArray: Express.Multer.File[] = Object.values(req.files).flat() as Express.Multer.File[];
-        parsedData.photos = filesArray.map(file => `/images/${file.filename}`);
+        parsedData.photos = filesArray.map(file => file.path);
       }
 
       // Ensure photos is an array

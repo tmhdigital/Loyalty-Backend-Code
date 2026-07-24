@@ -14,7 +14,7 @@ export const uploadDocumentImagesToDB = async (userId: string, files: Express.Mu
   }
 
   // Save file paths (adjust according to your storage strategy)
-  const imagePaths = files.map((file) => `/image/${file.filename}`);
+  const imagePaths = files.map((file) => file.path);
   user.documentVerified = (user.documentVerified || []).concat(imagePaths);
 
   // You can generate a new access token if needed; omitted here for simplicity

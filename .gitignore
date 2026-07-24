@@ -11,6 +11,8 @@ node_modules
 dist
 build
 
+c.md
+
 # Logs
 logs
 *.log

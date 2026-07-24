@@ -44,8 +44,7 @@ const createPromotion = catchAsync(async (req: Request, res: Response) => {
   let imageUrl: string | undefined = undefined;
   if (req.files && (req.files as any).image && (req.files as any).image[0]) {
     const file = (req.files as any).image[0];
-    const fileName = file.filename;
-    imageUrl = `/images/${fileName}`;
+    imageUrl = file.path;
   }
 
   // MERCHANT ID from request.user (auth middleware sets req.user)
@@ -163,8 +162,7 @@ const updatePromotion = catchAsync(async (req: Request, res: Response) => {
   // ✅ Fix Image URL Format (same as create)
   if (req.files && (req.files as any).image && (req.files as any).image[0]) {
     const file = (req.files as any).image[0];
-    const fileName = file.filename;
-    payload.image = `/images/${fileName}`;
+    payload.image = file.path;
   }
 
   const data = await PromotionAdminService.updatePromotionToDB(

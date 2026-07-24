@@ -29,22 +29,21 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
   const merchantId = merchant._id;
 
 
-  // 🔹 Base URL
-  const baseUrl = `${req.protocol}s://${req.get("host")}`;
-  
-  // const baseUrl = "https://hz2w208g-5004.inc1.devtunnels.ms";
-
+  // 🔹 Media base URL (Spaces CDN — same as frontend's VITE_MEDIA_URL)
+  const mediaBaseUrl = process.env.MEDIA_URL as string;
 
   // Parse JSON data
   const payloadData = req.body.data ? JSON.parse(req.body.data) : {};
 
-
   // Image: uploaded file overrides body link
   const image =
-  req.files && (req.files as any).image
-    ? `${baseUrl}/images/${(req.files as any).image[0].filename}`  
-    : payloadData.image?.replace(/^\/uploads/, ""); 
-
+    req.files && (req.files as any).image
+      ? `${mediaBaseUrl}${(req.files as any).image[0].path}`
+      : payloadData.image?.startsWith("http")
+        ? payloadData.image
+        : payloadData.image
+          ? `${mediaBaseUrl}${payloadData.image}`
+          : undefined;
 
 
   // FRONTEND LAT/LNG
@@ -54,7 +53,7 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
       type: "Point",
       coordinates: [Number(payloadData.lng), Number(payloadData.lat)],
     };
- 
+
   }
 
   const payload = {
@@ -92,8 +91,8 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
 
 
 
-export const PushController = { 
+export const PushController = {
   sendNotificationToAll,
   sendMerchantPromotion
   //  getAllPushes 
-  };
+};

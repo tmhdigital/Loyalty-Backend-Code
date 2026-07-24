@@ -54,7 +54,7 @@ const createPromotion = catchAsync(async (req: Request, res: Response) => {
 
   if (req.files && (req.files as any).image && (req.files as any).image[0]) {
     const file = (req.files as any).image[0];
-    imageUrl = `/images/${file.filename}`;
+    imageUrl = file.path;
 
 
   } else {
@@ -196,8 +196,7 @@ const updatePromotion = catchAsync(async (req: Request, res: Response) => {
   // ✅ Fix Image URL Format (same as create)
   if (req.files && (req.files as any).image && (req.files as any).image[0]) {
     const file = (req.files as any).image[0];
-    const fileName = file.filename;
-    payload.image = `/images/${fileName}`;
+    payload.image = file.path;
   }
 
   const data = await PromotionService.updatePromotionToDB(
@@ -308,7 +307,7 @@ const getPromotionsByUserCategory = catchAsync(async (req: Request, res: Respons
 const sendNotificationToCustomer = catchAsync(async (req: Request, res: Response) => {
   let attachment;
   if (req.files && "image" in req.files && req.files.image[0]) {
-    attachment = `/images/${req.files.image[0].filename}`;
+    attachment = req.files.image[0].path;
   }
 
   const notificationData = {

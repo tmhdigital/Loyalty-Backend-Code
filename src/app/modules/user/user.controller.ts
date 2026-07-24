@@ -77,11 +77,11 @@ const updateProfile = catchAsync(
     }
     let profile;
     if (req.files && "profile" in req.files && req.files.profile[0]) {
-      profile = `/images/${req.files.profile[0].filename}`;
+      profile = req.files.profile[0].path;
     }
     let photo;
     if (req.files && "coverPhoto" in req.files && req.files.coverPhoto[0]) {
-      photo = `/images/${req.files.coverPhoto[0].filename}`;
+      photo = req.files.coverPhoto[0].path;
     }
 
     if (bodyData?.latitude && bodyData?.longitude) {
