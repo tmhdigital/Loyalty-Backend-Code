@@ -5,6 +5,7 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import ApiError from "../../../errors/ApiErrors";
 import { JwtPayload } from "jsonwebtoken";
+import { getSingleFileUrl } from "../../../shared/getFilePath";
 
 // register user
 const createUser = catchAsync(
@@ -75,14 +76,11 @@ const updateProfile = catchAsync(
         message: "Phone number cannot be changed",
       });
     }
-    let profile;
-    if (req.files && "profile" in req.files && req.files.profile[0]) {
-      profile = req.files.profile[0].path;
-    }
-    let photo;
-    if (req.files && "coverPhoto" in req.files && req.files.coverPhoto[0]) {
-      photo = req.files.coverPhoto[0].path;
-    }
+    // FIX: multer ab memoryStorage par hai, `filename` undefined hota tha
+    // aur DB mein "/images/undefined" save ho raha tha. Ab middleware ka
+    // set kiya hua poora CDN URL use hota hai.
+    const profile = getSingleFileUrl(req.files, "profile");
+    const photo = getSingleFileUrl(req.files, "coverPhoto");
 
     if (bodyData?.latitude && bodyData?.longitude) {
       bodyData.location = {

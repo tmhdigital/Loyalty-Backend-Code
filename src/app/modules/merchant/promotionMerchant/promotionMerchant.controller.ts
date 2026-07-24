@@ -9,6 +9,7 @@ import { IPromotion } from "./promotionMerchant.interface";
 import { JwtPayload } from "jsonwebtoken";
 import { sendNotification } from "../../../../helpers/notificationsHelper";
 import { NotificationType } from "../../notification/notification.model";
+import { getSingleFileUrl } from "../../../../shared/getFilePath";
 
 
 const normalizeStartDate = (date: string) => {
@@ -52,14 +53,9 @@ const createPromotion = catchAsync(async (req: Request, res: Response) => {
   // IMAGE URL
   let imageUrl: string | undefined = undefined;
 
-  if (req.files && (req.files as any).image && (req.files as any).image[0]) {
-    const file = (req.files as any).image[0];
-    imageUrl = file.path;
-
-
-  } else {
- 
-  }
+  // FIX: `file.filename` memoryStorage ke sath undefined hota hai.
+  // Middleware ne Spaces par upload karke poora URL `file.path` mein rakha hai.
+  imageUrl = getSingleFileUrl(req.files, "image");
 
   // USER from auth middleware
   const user = req.user as any;
@@ -193,10 +189,10 @@ const updatePromotion = catchAsync(async (req: Request, res: Response) => {
     ...(bodyData.grossValue && { grossValue: Number(bodyData.grossValue) }),
   };
 
-  // ✅ Fix Image URL Format (same as create)
-  if (req.files && (req.files as any).image && (req.files as any).image[0]) {
-    const file = (req.files as any).image[0];
-    payload.image = file.path;
+  // FIX: Spaces ka poora URL use karo, filename ab set nahi hota
+  const updatedImageUrl = getSingleFileUrl(req.files, "image");
+  if (updatedImageUrl) {
+    payload.image = updatedImageUrl;
   }
 
   const data = await PromotionService.updatePromotionToDB(
@@ -305,10 +301,8 @@ const getPromotionsByUserCategory = catchAsync(async (req: Request, res: Respons
 
 
 const sendNotificationToCustomer = catchAsync(async (req: Request, res: Response) => {
-  let attachment;
-  if (req.files && "image" in req.files && req.files.image[0]) {
-    attachment = req.files.image[0].path;
-  }
+  // FIX: Spaces ka poora URL use karo
+  const attachment = getSingleFileUrl(req.files, "image");
 
   const notificationData = {
     ...req.body,

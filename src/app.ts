@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import path from "path";
 import cors from "cors";
 import { StatusCodes } from "http-status-codes";
 import { Morgan } from "./shared/morgan";
@@ -128,7 +129,25 @@ app.use(
 );
 
 // Static files
-app.use(express.static("uploads"));
+//
+// NOTE: pehle ye `express.static("uploads")` tha, jo `uploads` folder ko root `/`
+// par serve karta tha. Us se DB mein save shuda path `/uploads/images/x.jpg`
+// disk par `uploads/uploads/images/x.jpg` dhoondta tha, jo kabhi mila hi nahi.
+//
+// Naye uploads ab DigitalOcean Spaces par jaate hain aur DB mein poora CDN URL
+// save hota hai. Ye mount sirf purane (legacy) local files ke liye rakha gaya hai
+// taake migration ke doran purani images bhi khulti rahein.
+//
+// Do mounts jaan bujh kar rakhe gaye hain, kyunke DB mein teen daur ke
+// paths pare hain:
+//
+//   1) "/images/x.jpg"          -> purane diskStorage daur ke records
+//   2) "/uploads/images/x.jpg"  -> local development mode ke naye records
+//   3) "https://cdn.../..."     -> Spaces mode ke records (yahan se nahi aate)
+//
+// Pehla mount case 1 ko serve karta hai, doosra case 2 ko.
+app.use(express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 /* ==========================================================
    SESSION
