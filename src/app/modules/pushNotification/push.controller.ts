@@ -41,7 +41,6 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
   // Parse JSON data
   const payloadData = req.body.data ? JSON.parse(req.body.data) : {};
 
-
   // Image: uploaded file overrides body link
   // FIX: uploaded file ab Spaces par jaati hai aur `file.path` mein
   // poora public URL hota hai. Pehle `filename` use ho raha tha jo
@@ -59,7 +58,7 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
       type: "Point",
       coordinates: [Number(payloadData.lng), Number(payloadData.lat)],
     };
- 
+
   }
 
   const payload = {
@@ -97,7 +96,7 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
 
 
 
-export const PushController = { 
+export const PushController = {
   sendNotificationToAll,
   sendMerchantPromotion
   //  getAllPushes 
