@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { ZodSchema } from "zod";
 import ApiError from "../../errors/ApiErrors";
 import { StatusCodes } from "http-status-codes";
+import { getAllFileUrls } from "../../shared/getFilePath";
 
 export const validateFormData = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -27,8 +28,8 @@ export const validateFormData = (schema: ZodSchema) => {
 
       //  Boolean conversion
       if (req.files) {
-        const filesArray: Express.Multer.File[] = Object.values(req.files).flat() as Express.Multer.File[];
-        parsedData.photos = filesArray.map(file => `/images/${file.filename}`);
+        // FIX: Spaces ka poora URL use karo, `filename` ab set nahi hota
+        parsedData.photos = getAllFileUrls(req.files);
       }
 
       // Ensure photos is an array

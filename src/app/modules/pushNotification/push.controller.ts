@@ -4,6 +4,7 @@ import sendResponse from "../../../shared/sendResponse";
 import { PushService } from "./push.service";
 
 import { StatusCodes } from "http-status-codes";
+import { getSingleFileUrl } from "../../../shared/getFilePath";
 
 
 
@@ -30,7 +31,9 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
 
 
   // 🔹 Base URL
-  const baseUrl = `${req.protocol}s://${req.get("host")}`;
+  // NOTE: ab images Spaces CDN par hoti hain, is liye server ka apna
+  // baseUrl image URL banane ke liye zaroori nahi raha.
+  // const baseUrl = `${req.protocol}s://${req.get("host")}`;
   
   // const baseUrl = "https://hz2w208g-5004.inc1.devtunnels.ms";
 
@@ -40,10 +43,12 @@ const sendMerchantPromotion = catchAsync(async (req: Request, res: Response) => 
 
 
   // Image: uploaded file overrides body link
+  // FIX: uploaded file ab Spaces par jaati hai aur `file.path` mein
+  // poora public URL hota hai. Pehle `filename` use ho raha tha jo
+  // memoryStorage ke sath undefined rehta hai.
   const image =
-  req.files && (req.files as any).image
-    ? `${baseUrl}/images/${(req.files as any).image[0].filename}`  
-    : payloadData.image?.replace(/^\/uploads/, ""); 
+    getSingleFileUrl(req.files, "image") ??
+    payloadData.image?.replace(/^\/uploads/, "");
 
 
 

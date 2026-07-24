@@ -7,6 +7,7 @@ import ApiError from "../../../../errors/ApiErrors";
 import sendResponse from "../../../../shared/sendResponse";
 import { IPromotion } from "./adminPromotion.interface";
 import { JwtPayload } from "jsonwebtoken";
+import { getSingleFileUrl } from "../../../../shared/getFilePath";
 
 
 const normalizeStartDate = (date: string) => {
@@ -41,12 +42,9 @@ const createPromotion = catchAsync(async (req: Request, res: Response) => {
   }
 
   // IMAGE URL
-  let imageUrl: string | undefined = undefined;
-  if (req.files && (req.files as any).image && (req.files as any).image[0]) {
-    const file = (req.files as any).image[0];
-    const fileName = file.filename;
-    imageUrl = `/images/${fileName}`;
-  }
+  // FIX: `file.filename` memoryStorage ke sath undefined hota hai.
+  // Middleware ne Spaces par upload karke poora URL `file.path` mein rakha hai.
+  const imageUrl: string | undefined = getSingleFileUrl(req.files, "image");
 
   // MERCHANT ID from request.user (auth middleware sets req.user)
   const merchantId = (req.user as any)?._id;
@@ -160,11 +158,10 @@ const updatePromotion = catchAsync(async (req: Request, res: Response) => {
     }),
   };
 
-  // ✅ Fix Image URL Format (same as create)
-  if (req.files && (req.files as any).image && (req.files as any).image[0]) {
-    const file = (req.files as any).image[0];
-    const fileName = file.filename;
-    payload.image = `/images/${fileName}`;
+  // FIX: Spaces ka poora URL use karo, filename ab set nahi hota
+  const updatedImageUrl = getSingleFileUrl(req.files, "image");
+  if (updatedImageUrl) {
+    payload.image = updatedImageUrl;
   }
 
   const data = await PromotionAdminService.updatePromotionToDB(

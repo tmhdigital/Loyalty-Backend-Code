@@ -11,6 +11,9 @@ export default {
   port: process.env.PORT,
   // api_url: process.env.API_URL,
 
+  client_url: process.env.CLIENT_URL,
+  admin_url: process.env.ADMIN_URL,
+
   database_url: process.env.DATABASE_URL,
   node_env: process.env.NODE_ENV,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
@@ -55,6 +58,13 @@ export default {
   veevoTech: {
     apiKey: process.env.VEEVOTECH_API_KEY,
     senderId: process.env.VEEVOTECH_SENDER_ID,
+  },
+  spaces: {
+    key: process.env.DO_SPACES_KEY,
+    secret: process.env.DO_SPACES_SECRET,
+    endpoint: process.env.DO_SPACES_ENDPOINT,
+    bucket: process.env.DO_SPACES_BUCKET,
+    cdnUrl: process.env.DO_SPACES_CDN_URL,
   },
   m3Sms: {
     userId: process.env.M3_SMS_USER_ID,

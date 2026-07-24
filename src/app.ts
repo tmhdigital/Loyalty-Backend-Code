@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import path from "path";
 import cors from "cors";
 import { StatusCodes } from "http-status-codes";
 import { Morgan } from "./shared/morgan";
@@ -14,6 +15,7 @@ import cookieParser from "cookie-parser";
 import handleStripeWebhook from "./helpers/handleStripeWebhook";
 import { logger } from "./shared/logger";
 import router from "./app/routes";
+import config from "./config";
 
 const app = express();
 
@@ -23,25 +25,25 @@ const app = express();
 
 const allowedOrigins = [
   // Production
-  "https://rewaldo-admin.vercel.app",
-  "https://rewaldo-business.vercel.app",
+  config.client_url,
+  config.admin_url,
 
-  // Local development
-  "http://localhost:3000",
-  "http://localhost:3003",
-  "http://localhost:3004",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:5500",
-  "http://localhost:5500",
-
-  // Local network
-  "http://10.10.26.175:3003",
-  "http://10.10.26.175:3004",
-  "http://31.97.117.41:3003",
-  "http://31.97.117.41:3004",
-  "http://172.17.80.1:3000",
-  "http://192.168.32.1:3000",
-];
+  // Local development (sirf production ke ilawa)
+  ...(config.node_env !== "production" ? [
+    "http://localhost:3000",
+    "http://localhost:3003",
+    "http://localhost:3004",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://10.10.26.175:3003",
+    "http://10.10.26.175:3004",
+    "http://31.97.117.41:3003",
+    "http://31.97.117.41:3004",
+    "http://172.17.80.1:3000",
+    "http://192.168.32.1:3000",
+  ] : []),
+].filter(Boolean);
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
@@ -127,7 +129,15 @@ app.use(
 );
 
 // Static files
-app.use(express.static("uploads"));
+//
+// NOTE: pehle ye `express.static("uploads")` tha, jo `uploads` folder ko root `/`
+// par serve karta tha. Us se DB mein save shuda path `/uploads/images/x.jpg`
+// disk par `uploads/uploads/images/x.jpg` dhoondta tha, jo kabhi mila hi nahi.
+//
+// Naye uploads ab DigitalOcean Spaces par jaate hain aur DB mein poora CDN URL
+// save hota hai. Ye mount sirf purane (legacy) local files ke liye rakha gaya hai
+// taake migration ke doran purani images bhi khulti rahein.
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 /* ==========================================================
    SESSION

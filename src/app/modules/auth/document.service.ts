@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiErrors';
 import { User } from '../user/user.model';
+import { getUploadedFileUrl } from '../../../shared/getFilePath';
 
 
 export const uploadDocumentImagesToDB = async (userId: string, files: Express.Multer.File[]) => {
@@ -13,8 +14,10 @@ export const uploadDocumentImagesToDB = async (userId: string, files: Express.Mu
     throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
   }
 
-  // Save file paths (adjust according to your storage strategy)
-  const imagePaths = files.map((file) => `/image/${file.filename}`);
+  // FIX: Spaces par upload hone ke baad poora URL `file.path` mein hota hai
+  const imagePaths = files
+    .map((file) => getUploadedFileUrl(file))
+    .filter((url): url is string => Boolean(url));
   user.documentVerified = (user.documentVerified || []).concat(imagePaths);
 
   // You can generate a new access token if needed; omitted here for simplicity
