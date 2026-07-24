@@ -137,6 +137,16 @@ app.use(
 // Naye uploads ab DigitalOcean Spaces par jaate hain aur DB mein poora CDN URL
 // save hota hai. Ye mount sirf purane (legacy) local files ke liye rakha gaya hai
 // taake migration ke doran purani images bhi khulti rahein.
+//
+// Do mounts jaan bujh kar rakhe gaye hain, kyunke DB mein teen daur ke
+// paths pare hain:
+//
+//   1) "/images/x.jpg"          -> purane diskStorage daur ke records
+//   2) "/uploads/images/x.jpg"  -> local development mode ke naye records
+//   3) "https://cdn.../..."     -> Spaces mode ke records (yahan se nahi aate)
+//
+// Pehla mount case 1 ko serve karta hai, doosra case 2 ko.
+app.use(express.static(path.join(process.cwd(), "uploads")));
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 /* ==========================================================

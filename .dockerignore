@@ -1,9 +1,6 @@
 # Node modules (server & local dev)
 node_modules
 
-# TypeScript source (compiled to dist in builder stage)
-# Keeping src out of production image
-src
 
 # Build artifacts (rebuilt inside Docker)
 dist
@@ -52,9 +49,6 @@ __tests__
 
 # README
 README.md
-
-# TypeScript config (not needed at runtime)
-tsconfig.json
 
 # PM2 logs
 .pm2

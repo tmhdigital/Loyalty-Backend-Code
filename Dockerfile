@@ -9,7 +9,7 @@ COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
 # npm ci is used instead of "npm install" for reproducible, lockfile exact install in CI/CD
-RUN npm ci
+RUN npm install
 
 COPY . .
 
@@ -28,7 +28,7 @@ WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm ci --omit=dev
+RUN npm install
 
 # Copy compiled JS from builder stage
 COPY --from=builder /app/dist ./dist
