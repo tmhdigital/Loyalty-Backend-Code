@@ -72,13 +72,15 @@ const createUserToDB = async (payload: CreateUserPayload): Promise<IUser> => {
   let user: IUser | null = null;
 
   // 2️⃣ Update existing user
-  if (isExitByEmail || isExitByPhone) {
-    const existingUser = isExitByEmail || isExitByPhone;
-    user = await User.findByIdAndUpdate(existingUser._id, payload, { new: true });
-    if (!user) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to update existing user");
-    }
-  } else {
+ if (isExitByEmail || isExitByPhone) {
+  const existingUser = isExitByEmail || isExitByPhone;
+  const userDoc = await User.findById(existingUser!._id);
+  if (!userDoc) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to update existing user");
+  }
+  Object.assign(userDoc, payload); // triggers isModified('password') correctly
+  user = await userDoc.save();
+} else {
     // 3️⃣ Create new user
     const referenceId = await createUniqueReferralId();
     const customUserId = await generateCustomUserId(payload.role as string);
