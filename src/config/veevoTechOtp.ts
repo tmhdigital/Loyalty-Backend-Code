@@ -1,7 +1,3 @@
-
-
-
-
 import axios from "axios";
 import config from "../config";
 
@@ -16,7 +12,7 @@ export const sendOtp = async (phone: string, otp: string) => {
       textmessage: `Your OTP is ${otp}`,
     };
 
-    const response = await axios.post(url, payload);
+    const response = await axios.post(url, payload, { timeout: 10000 }); // 10s hard timeout, warna hang ho sakta hai
 
 
 

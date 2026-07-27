@@ -140,27 +140,25 @@ const createUserToDB = async (payload: CreateUserPayload): Promise<IUser> => {
     await User.findByIdAndUpdate(user._id, { $set: authUpdate });
   }
 
-  // 7️⃣ Send OTP to email if the user provided one
+  // 7️⃣ Send OTP to email in the BACKGROUND.
+  // Ye jaan boojh kar await NAHI kiya. Email/SMTP slow ya block ho to bhi
+  // signup response foran chala jaye. Warna app 60s baad "No Internet" dikhati hai.
   if (user.email) {
-    try {
-      const template = emailTemplate.createAccount({
-        name: user.firstName || "User",
-        otp,
-        email: user.email,
-      });
-      await emailHelper.sendEmail(template);
-    } catch (error) {
-      logger.error("Failed to send signup email OTP", error);
-    }
+    const template = emailTemplate.createAccount({
+      name: user.firstName || "User",
+      otp,
+      email: user.email,
+    });
+    emailHelper
+      .sendEmail(template)
+      .catch((error) => logger.error("Failed to send signup email OTP", error));
   }
 
-  // 8️⃣ Send OTP via VeevoTech API for phone if provided
+  // 8️⃣ Send OTP via VeevoTech API for phone in the BACKGROUND (await nahi).
   if (user.phone) {
-    try {
-      await sendOtp(user.phone, otp.toString());
-    } catch (error) {
-      logger.error("Something failed", error);
-    }
+    sendOtp(user.phone, otp.toString()).catch((error) =>
+      logger.error("Failed to send signup SMS OTP", error)
+    );
   }
 
   // 8️⃣ Notify Super Admin

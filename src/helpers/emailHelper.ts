@@ -16,6 +16,11 @@ const transporter = nodemailer.createTransport({
     tls: {
     rejectUnauthorized: false, // <-- ignore SSL mismatch
   },
+    // Short timeouts. DigitalOcean aksar outbound SMTP block/slow karta hai,
+    // in ke bina sendMail ~2 min tak hang kar sakta hai.
+    connectionTimeout: 8000, // 8s TCP connect
+    greetingTimeout: 8000,   // 8s SMTP greeting
+    socketTimeout: 10000,    // 10s idle socket
 });
 
 const sendEmail = async (values: ISendEmail) => {
