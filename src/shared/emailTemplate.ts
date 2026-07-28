@@ -4,6 +4,7 @@ const createAccount = (values: ICreateAccount) => {
     const data = {
         to: values.email,
         subject: 'Verify your account',
+        text: `Hi ${values.name},\n\nThanks for signing up for Rewaldo. Your verification code is: ${values.otp}\n\nThis code expires in 3 minutes.\n\nIf you did not create a Rewaldo account, you can safely ignore this email.\n\nThis is an automated message, please do not reply.\n© 2025 Rewaldo. All rights reserved.`,
         html: `
             <!doctype html>
             <html lang="en">
@@ -41,7 +42,7 @@ const createAccount = (values: ICreateAccount) => {
                                 <!-- Body -->
                                 <tr>
                                     <td class="rw-padding" style="padding: 40px;">
-                                        <h1 style="margin: 0 0 16px; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 22px; line-height: 1.4; font-weight: 600; color: #181818;">Hey, ${values.name}! 👋</h1>
+                                        <h1 style="margin: 0 0 16px; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 22px; line-height: 1.4; font-weight: 600; color: #181818;">Hi ${values.name},</h1>
 
                                         <p style="margin: 0 0 32px; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.7; color: #5B6270;">
                                             Thanks for signing up for Rewaldo. Use the verification code below to confirm your email address and activate your account.
@@ -77,6 +78,7 @@ const createAccount = (values: ICreateAccount) => {
                                 <!-- Footer -->
                                 <tr>
                                     <td class="rw-padding" style="padding: 28px 40px; text-align: center; background-color: #FAFBFC; border-top: 1px solid #EEF0F2;">
+                                        <p style="margin: 0 0 6px; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #9AA0A8;">This is an automated message, please do not reply.</p>
                                         <p style="margin: 0; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #9AA0A8;">&copy; 2025 Rewaldo. All rights reserved.</p>
                                     </td>
                                 </tr>
@@ -98,6 +100,7 @@ const resetPassword = (values: IResetPassword) => {
     const data = {
         to: values.email,
         subject: 'Reset your password',
+        text: `We received a request to reset the password on your Rewaldo account.\n\nYour verification code is: ${values.otp}\n\nThis code expires in 3 minutes.\n\nIf you did not request a password reset, you can safely ignore this email — your password will remain unchanged.\n\nThis is an automated message, please do not reply.\n© 2025 Rewaldo. All rights reserved.`,
         html: `
             <!doctype html>
             <html lang="en">
@@ -171,6 +174,7 @@ const resetPassword = (values: IResetPassword) => {
                                 <!-- Footer -->
                                 <tr>
                                     <td class="rw-padding" style="padding: 28px 40px; text-align: center; background-color: #FAFBFC; border-top: 1px solid #EEF0F2;">
+                                        <p style="margin: 0 0 6px; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #9AA0A8;">This is an automated message, please do not reply.</p>
                                         <p style="margin: 0; font-family: 'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif; font-size: 12px; line-height: 1.6; color: #9AA0A8;">&copy; 2025 Rewaldo. All rights reserved.</p>
                                     </td>
                                 </tr>

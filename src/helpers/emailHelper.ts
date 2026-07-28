@@ -31,7 +31,7 @@ const sendEmail = async (values: ISendEmail) => {
     });
 
     const info = await transporter.sendMail({
-      from: `"Mlitech" <${config.email.from}>`,
+      from: `"Rewaldo" <${config.email.from}>`,
       to: values.to,
       subject: values.subject,
       html: values.html,
