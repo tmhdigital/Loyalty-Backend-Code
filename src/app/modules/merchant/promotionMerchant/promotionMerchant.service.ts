@@ -248,6 +248,7 @@ const getPopularMerchantsFromDB = async () => {
         totalPromotions: 1,
 
         firstName: "$merchant.firstName",
+        businessName: "$merchant.businessName",
         email: "$merchant.email",
         profile: "$merchant.profile",
       },
