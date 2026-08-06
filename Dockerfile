@@ -30,6 +30,8 @@ COPY package*.json ./
 
 RUN npm install
 
+RUN npm install -g pm2
+
 # Copy compiled JS from builder stage
 COPY --from=builder /app/dist ./dist
 
@@ -47,7 +49,8 @@ EXPOSE 5004
 
 # Health check — ensures container is healthy before traffic is routed
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-CMD wget -qO- http://localhost:5004/health || exit 1
+CMD wget -qO- http://api.rewaldo.com/health || exit 1
 
 # Start with Node directly (PM2 is used on the host via ecosystem.config.js)
-CMD ["node", "dist/server.js"]
+
+CMD ["pm2-runtime", "start", "ecosystem.config.js", "--env", "production"]

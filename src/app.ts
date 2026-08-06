@@ -45,7 +45,7 @@ const allowedOrigins = [
   ] : []),
 ].filter(Boolean);
 
-const corsOptions: cors.CorsOptions = {
+export const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow mobile apps, Postman, server-to-server requests
     if (!origin) {

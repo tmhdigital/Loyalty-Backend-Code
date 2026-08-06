@@ -15,6 +15,7 @@ export default {
   admin_url: process.env.ADMIN_URL,
 
   database_url: process.env.DATABASE_URL,
+  redis_url: process.env.REDIS_URL,
   node_env: process.env.NODE_ENV,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   jwt: {
