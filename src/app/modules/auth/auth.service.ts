@@ -2,6 +2,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import config from '../../../config';
 import ApiError from '../../../errors/ApiErrors';
 import { USER_STATUS } from '../../../enums/user';
@@ -95,14 +96,14 @@ export const newAccessTokenToUser = async (refreshToken: string) => {
   }
 
   // 4️⃣ compare session (hashed vs plain)
-  const isSessionValid = await bcrypt.compare(
-    verifyUser.sessionId,
-    user.sessionId
-  );
+  const hashedIncoming = crypto
+    .createHash("sha256")
+    .update(verifyUser.sessionId)
+    .digest("hex");
 
-  if (!isSessionValid) {
-    throw new ApiError(StatusCodes.UNAUTHORIZED, "Session expired");
-  }
+  const isSessionValid = user.sessionId.startsWith("$2")
+    ? await bcrypt.compare(verifyUser.sessionId, user.sessionId)  // purane bcrypt sessions
+    : user.sessionId === hashedIncoming;                          // naye SHA-256 sessions
 
   // 5️⃣ generate new access token
   const accessToken = jwtHelper.createToken(
