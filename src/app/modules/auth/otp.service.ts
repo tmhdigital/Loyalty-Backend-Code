@@ -9,7 +9,6 @@ import { jwtHelper } from '../../../helpers/jwtHelper';
 import config from '../../../config';
 import cryptoToken from '../../../utils/cryptoToken';
 import { ResetToken } from '../resetToken/resetToken.model';
-// import bcrypt from "bcrypt";
 import * as crypto from 'crypto';
 
 export const resendOtpToDB = async (identifier: string) => {

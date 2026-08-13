@@ -11,7 +11,7 @@ node_modules
 dist
 build
 
-c.md
+command.md
 
 # Logs
 logs
