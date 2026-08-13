@@ -9,8 +9,8 @@ import { jwtHelper } from '../../../helpers/jwtHelper';
 import config from '../../../config';
 import cryptoToken from '../../../utils/cryptoToken';
 import { ResetToken } from '../resetToken/resetToken.model';
-import bcrypt from "bcrypt";
-
+// import bcrypt from "bcrypt";
+import * as crypto from 'crypto';
 
 export const resendOtpToDB = async (identifier: string) => {
   const isEmail = identifier.includes('@');
@@ -101,10 +101,10 @@ export const verifyOtpToDB = async (payload: {
   // ===============================
   const sessionId = crypto.randomUUID();
 
-  const hashedSessionId = await bcrypt.hash(
-    sessionId,
-    Number(config.bcrypt_salt_rounds)
-  );
+  const hashedSessionId = crypto
+    .createHash("sha256")
+    .update(sessionId)
+    .digest("hex");
 
   user.sessionId = hashedSessionId;
 

@@ -182,17 +182,15 @@ app.use(
 
 app.use((req: Request, res: Response, next) => {
   const start = Date.now();
-
   res.on("finish", () => {
     logger.info("HTTP Request", {
       worker: process.pid,
       method: req.method,
       url: req.originalUrl,
-      statusCode: res.statusCode,
-      responseTime: Date.now() - start,
+      status: res.statusCode,
+      durationMs: Date.now() - start,
     });
   });
-
   next();
 });
 

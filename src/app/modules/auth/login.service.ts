@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import bcrypt from "bcrypt";
 import { Secret } from "jsonwebtoken";
 import { StatusCodes } from "http-status-codes";
 
@@ -77,10 +76,7 @@ export const loginUserFromDB = async (
   // session
   const sessionId = crypto.randomUUID();
 
-  const hashedSessionId = await bcrypt.hash(
-    sessionId,
-    Number(config.bcrypt_salt_rounds)
-  );
+  const hashedSessionId = crypto.createHash("sha256").update(sessionId).digest("hex");
 
   // tokens
   const accessToken = jwtHelper.createToken(

@@ -10,8 +10,7 @@ import { startCronJobs, stopCronJobs } from "./cronJobs";
 import { cleanupStaleSockets } from "./utils/cleanupSocket";
 import { validateEnv } from "./config/env.validation";
 import { connectRedis, pubClient, subClient } from "./config/redisClients";
-import { RedisClientType } from "@redis/client";
-import { RedisDefaultModules } from "redis";
+import { createAdapter } from "@socket.io/redis-adapter";
 let server: any;
 
 // uncaught exception
@@ -32,7 +31,6 @@ async function main() {
     try {
       const db = mongoose.connection.db;
       if (db) {
-        // Drop old cardCode_1 index from digitalcardpromotions (stale from old schema)
         await db.collection("digitalcardpromotions").dropIndex("cardCode_1");
         logger.info(colors.yellow("🧹 Dropped stale index: digitalcardpromotions.cardCode_1"));
       }
@@ -62,7 +60,6 @@ async function main() {
     });
 
     // socket setup
-
     const io = new Server(server, {
       pingTimeout: 60000,
       cors: corsOptions,
@@ -74,7 +71,6 @@ async function main() {
     }
 
     socketHelper.socket(io);
-
 
     global.io = io;
 
@@ -93,18 +89,13 @@ async function main() {
       logger.info("SIGTERM received");
 
       try {
-        // 1. Stop cron jobs first
         stopCronJobs();
-
-        // 2. Stop interval jobs
         clearInterval(cleanupInterval);
 
-        // 3. Close socket server
         io.close(() => {
           logger.info("Socket server closed");
         });
 
-        // 4. Close HTTP server
         if (server) {
           server.close(() => {
             logger.info("HTTP server closed");
@@ -130,7 +121,3 @@ async function main() {
 }
 
 main();
-
-function createAdapter(pubClient: any, subClient: RedisClientType<RedisDefaultModules, {}, {}, 3, {}>): typeof import("socket.io-adapter").Adapter | ((nsp: import("socket.io").Namespace) => import("socket.io-adapter").Adapter) {
-  throw new Error("Function not implemented.");
-}

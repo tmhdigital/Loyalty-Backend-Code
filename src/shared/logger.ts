@@ -1,6 +1,7 @@
 import path from 'path';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { createLogger, format, transports } from 'winston';
+import config from '../config';
 const { combine, timestamp, label, printf } = format;
 
 interface IMessageProps{
@@ -22,10 +23,10 @@ const myFormat = printf((info: any) => {
 
 
 const logger = createLogger({
-    level: 'info',
+    level: process.env.NODE_ENV === 'production' ? 'warn' : 'info',
     format: combine(label({ label: 'PROJECT_NAME' }), timestamp(), myFormat),
     transports: [
-        new transports.Console(),
+        new transports.Console({ level: config.node_env === "production" ? "warn" : "info" }),
         new DailyRotateFile({
             filename: path.join(process.cwd(), 'winston','success','%DATE%-success.log'),
             datePattern: 'DD-MM-YYYY-HH',
@@ -39,7 +40,7 @@ const errorLogger = createLogger({
     level: 'error',
     format: combine(label({ label: 'PROJECT_NAME' }), timestamp(), myFormat),
     transports: [
-        new transports.Console(),
+        new transports.Console({ level: config.node_env === "production" ? "warn" : "info" }),
         new DailyRotateFile({
             filename: path.join(
             process.cwd(),'winston','error','%DATE%-error.log'),
@@ -49,4 +50,5 @@ const errorLogger = createLogger({
         })
     ]
 });
+
 export { errorLogger, logger };

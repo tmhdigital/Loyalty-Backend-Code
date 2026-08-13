@@ -12,7 +12,7 @@ import unlinkFile from "../../../shared/unlinkFile";
 
 
 import { Subscription } from "../subscription/subscription.model";
-import { IPackage } from "../corePackage/corePackage.interface";
+// import { IPackage } from "../corePackage/corePackage.interface";
 import { DigitalCard, DigitalCardPromotion } from "../customer/digitalCard/digitalCard.model";
 
 import { createUniqueReferralId } from "../../../utils/generateReferralId";
@@ -27,10 +27,10 @@ import { logger } from "../../../shared/logger";
 
 
 
-interface IPackageWithId extends IPackage {
-  _id: string;
-  isFreeTrial?: boolean;
-}
+// interface IPackageWithId extends IPackage {
+//   _id: string;
+//   isFreeTrial?: boolean;
+// }
 
 const createAdminToDB = async (payload: any): Promise<IUser> => {
   // check admin is exist or not;
@@ -72,15 +72,15 @@ const createUserToDB = async (payload: CreateUserPayload): Promise<IUser> => {
   let user: IUser | null = null;
 
   // 2️⃣ Update existing user
- if (isExitByEmail || isExitByPhone) {
-  const existingUser = isExitByEmail || isExitByPhone;
-  const userDoc = await User.findById(existingUser!._id);
-  if (!userDoc) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to update existing user");
-  }
-  Object.assign(userDoc, payload); // triggers isModified('password') correctly
-  user = await userDoc.save();
-} else {
+  if (isExitByEmail || isExitByPhone) {
+    const existingUser = isExitByEmail || isExitByPhone;
+    const userDoc = await User.findById(existingUser!._id);
+    if (!userDoc) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to update existing user");
+    }
+    Object.assign(userDoc, payload); // triggers isModified('password') correctly
+    user = await userDoc.save();
+  } else {
     // 3️⃣ Create new user
     const referenceId = await createUniqueReferralId();
     const customUserId = await generateCustomUserId(payload.role as string);
@@ -190,17 +190,14 @@ const getUserProfileFromDB = async (
 > => {
   const { _id } = user;
 
-  const isExistUser: any = await User.isExistUserById(_id);
+  const isExistUser: any = await User.findById(_id).lean();
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
-  const subscriptions = await Subscription.find({ user: _id }).populate<{
-    package: IPackageWithId | null;
-  }>({
-    path: "package",
-    select: "title price duration isFreeTrial",
-  });
+  const subscriptions: any[] = await Subscription.find({ user: _id })
+    .populate({ path: "package", select: "title price duration isFreeTrial" })
+    .lean();
 
   const formattedSubscriptions = subscriptions.map((sub) => ({
     subscriptionId: sub._id,
@@ -221,7 +218,7 @@ const getUserProfileFromDB = async (
   );
 
   return {
-    ...isExistUser.toObject(),
+    ...isExistUser,
     subscriptions: formattedSubscriptions,
     totalSubscriptions: subscriptions.length,
     hasUsedFreePlan, // ✅ NEW FIELD
