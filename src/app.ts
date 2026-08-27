@@ -6,6 +6,7 @@ import { Morgan } from "./shared/morgan";
 
 import globalErrorHandler from "./app/middlewares/globalErrorHandler";
 import session from "express-session";
+import { RedisStore } from "connect-redis";
 import helmet from "helmet";
 import mongoSanitize from "express-mongo-sanitize";
 import xss from "xss-clean";
@@ -20,26 +21,10 @@ import config from "./config";
 
 const app = express();
 
-/* ==========================================================
-   SESSION STORE (Redis-backed, with safe fallback)
-   ----------------------------------------------------------
-   WHY: The default express-session MemoryStore (a) leaks memory and
-   (b) does NOT work across multiple PM2 cluster workers — a user whose
-   requests hit different workers appears randomly logged out. Both were
-   showing up in your logs. Storing sessions in Redis fixes both: shared
-   across workers + auto-expiring (no leak).
-
-   Reuses the pubClient you already create in config/redisClients.ts — no
-   new connection. If REDIS_URL is not set (e.g. local dev), it falls back
-   to the in-memory store exactly as before, so nothing breaks.
-
-   Requires: npm i connect-redis
-========================================================== */
 let sessionStore: session.Store | undefined = undefined;
 
 if (process.env.REDIS_URL) {
   try {
-    const { RedisStore } = require("connect-redis");
     sessionStore = new RedisStore({
       client: pubClient,
       prefix: "sess:",
@@ -245,51 +230,6 @@ app.get("/health", (req: Request, res: Response) => {
   });
 });
 
-
-// app.get("/debug/dbinfo", async (req: Request, res: Response) => {
-//   const mongoose = require("mongoose");
-//   const out: any = { success: true, connectedDb: null, databases: {} };
- 
-//   try {
-//     const adminDb = mongoose.connection.db;
-//     out.connectedDb = adminDb?.databaseName ?? "unknown";
- 
-//     // List all databases on the server.
-//     let dbList: any = null;
-//     try {
-//       dbList = await adminDb.admin().listDatabases();
-//     } catch (e: any) {
-//       out.listDatabasesError = e?.message;
-//     }
- 
-//     if (dbList?.databases) {
-//       for (const dbInfo of dbList.databases) {
-//         const name = dbInfo.name;
-//         try {
-//           // For each database, list its collections + a rough doc count.
-//           const theDb = mongoose.connection.client.db(name);
-//           const collections = await theDb.listCollections().toArray();
-//           const details: any = {};
-//           for (const col of collections) {
-//             try {
-//               const count = await theDb.collection(col.name).estimatedDocumentCount();
-//               details[col.name] = count;
-//             } catch {
-//               details[col.name] = "n/a";
-//             }
-//           }
-//           out.databases[name] = details;
-//         } catch (e: any) {
-//           out.databases[name] = `error: ${e?.message}`;
-//         }
-//       }
-//     }
- 
-//     return res.status(200).json(out);
-//   } catch (err: any) {
-//     return res.status(200).json({ success: false, error: err?.message });
-//   }
-// });
 /* ==========================================================
    ROUTES
 ========================================================== */

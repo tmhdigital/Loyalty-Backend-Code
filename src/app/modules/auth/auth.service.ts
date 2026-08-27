@@ -1,4 +1,3 @@
-
 import { StatusCodes } from 'http-status-codes';
 import { JwtPayload, Secret } from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -104,6 +103,10 @@ export const newAccessTokenToUser = async (refreshToken: string) => {
   const isSessionValid = user.sessionId.startsWith("$2")
     ? await bcrypt.compare(verifyUser.sessionId, user.sessionId)  // purane bcrypt sessions
     : user.sessionId === hashedIncoming;                          // naye SHA-256 sessions
+
+  if (!isSessionValid) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, "Invalid session");
+  }
 
   // 5️⃣ generate new access token
   const accessToken = jwtHelper.createToken(
