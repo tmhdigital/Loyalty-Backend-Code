@@ -86,8 +86,7 @@ const checkout = async (
         throw new Error(`Promotion ${promoId} not found in card`);
       }
 
-      const promotion =
-        await PromotionService.getSinglePromotionFromDB(promoId);
+      const promotion = await PromotionService.getSinglePromotionFromDB(promoId);
 
       if (!promotion) {
         throw new Error(`Promotion ${promoId} not found in DB`);

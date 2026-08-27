@@ -8,7 +8,7 @@ export const resolveCustomerIdsBySegment = async ({
     segment,
     minPoints,
     radiusKm,
-    merchantLocation,
+    merchantLocation
 }: {
     merchantId: Types.ObjectId;
     segment: CUSTOMER_SEGMENT;

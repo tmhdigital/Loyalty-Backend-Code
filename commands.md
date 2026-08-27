@@ -6,6 +6,7 @@ docker pull registry.digitalocean.com/rewaldo-registery/mlitech-backend:latest
 docker rm -f mlitech-backend
 docker run -d \
   --name mlitech-backend \
+  --network mlitech-net \
   --restart unless-stopped \
   -p 5004:5004 \
   --env-file .env.production \

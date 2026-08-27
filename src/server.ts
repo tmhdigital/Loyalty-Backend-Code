@@ -24,7 +24,20 @@ async function main() {
     // 🔐 ENV validation FIRST
     validateEnv();
 
-    await mongoose.connect(config.database_url as string);
+    // ─── CHANGE (file 01): tuned connection pool ───────────────────────
+    // Sized for your DigitalOcean Managed MongoDB (1 CPU / 1 GB) and 2 PM2
+    // cluster workers. Pool is PER WORKER, so total connections = maxPoolSize
+    // × 2. With maxPoolSize 10 that's 20 total — safe for a 1GB DB. Do NOT
+    // raise this much without upgrading the DB plan; too many connections
+    // exhaust the small DB's memory. Timeouts make slow-DB requests fail fast
+    // instead of hanging worker threads. Behaviour is otherwise unchanged.
+    await mongoose.connect(config.database_url as string, {
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      maxIdleTimeMS: 60000,
+    });
     logger.info(colors.green("🚀 Database connected successfully"));
 
     // ─── Drop stale indexes (one-time cleanup) ─────────────────────────
@@ -45,7 +58,23 @@ async function main() {
 
     await seedSuperAdmin();
 
-    // start cron jobs
+    // ─── CHANGE (file 10): connect Redis BEFORE accepting requests ─────
+    // Sessions (Redis store) and the Socket.IO adapter both depend on Redis
+    // being connected. Previously connectRedis() ran AFTER app.listen(),
+    // leaving a tiny startup window where a request could hit the Redis
+    // session store before Redis was ready. Connecting here closes that gap.
+    // If Redis is down we DON'T crash — session store and auth cache both
+    // fall back safely — we just log it loudly.
+    if (process.env.REDIS_URL) {
+      try {
+        await connectRedis();
+        logger.info(colors.green("Redis connected before server start"));
+      } catch (err: any) {
+        logger.error(`Redis connect failed at startup: ${err?.message}`);
+      }
+    }
+
+    // start cron jobs (guarded to run on one worker only — see file 09)
     await startCronJobs();
 
     const port =
@@ -65,9 +94,12 @@ async function main() {
       cors: corsOptions,
     });
 
-    if (process.env.REDIS_URL) {
-      await connectRedis();
+    // ─── CHANGE (file 10): Redis already connected above; just attach ──
+    // the adapter. Guarded on isReady so a failed Redis connect above can't
+    // throw here.
+    if (process.env.REDIS_URL && pubClient.isReady && subClient.isReady) {
       io.adapter(createAdapter(pubClient, subClient));
+      logger.info("Socket.IO Redis adapter attached");
     }
 
     socketHelper.socket(io);

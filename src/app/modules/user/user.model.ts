@@ -257,6 +257,11 @@ userSchema.index(
 );
 
 userSchema.index(
+  { service: 1 },
+  { collation: { locale: "en", strength: 2 } }
+);
+
+userSchema.index(
   { phone: 1 },
   { unique: true, partialFilterExpression: { phone: { $exists: true, $ne: null } } }
 );
