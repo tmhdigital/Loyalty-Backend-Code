@@ -40,9 +40,13 @@ export const buildRedirectionSignature = (
 };
 
 /**
- * Signature Kuickpay sends BACK on the success/failure redirect & IPN:
- * MD5(OrderID & TransactionID & KuickpaySecuredKey & ResponseCode)
- * The guide uses "&" literally as a separator, not URL query concatenation.
+ * Signature Kuickpay sends BACK on the success/failure redirect & IPN.
+ * Confirmed directly by Kuickpay support (not what the Merchant Implementation
+ * Guide v3.0 states) — it's a query-string-style key=value list, not raw
+ * concatenated values:
+ * MD5("OrderId=" + OrderID + "&TransactionId=" + TransactionID +
+ *     "&KuickpaySecuredKey=" + KuickpaySecuredKey + "&ResponseCode=" + ResponseCode)
+ * Verified against a real transaction's signature before applying this fix.
  */
 export const buildReturnSignature = (
   orderId: string,
@@ -50,7 +54,7 @@ export const buildReturnSignature = (
   securedKey: string,
   responseCode: string
 ): string => {
-  const raw = `${orderId}&${transactionId}&${securedKey}&${responseCode}`;
+  const raw = `OrderId=${orderId}&TransactionId=${transactionId}&KuickpaySecuredKey=${securedKey}&ResponseCode=${responseCode}`;
   return crypto.createHash("md5").update(raw).digest("hex");
 };
 
@@ -65,10 +69,12 @@ const safeEqual = (expected: string, received: string): boolean => {
 
 /**
  * Kuickpay's Merchant Implementation Guide (v3.0, Table 1.2 / section 8.1)
- * documents the return signature as:
- *     MD5(OrderID & TransactionID & KuickpaySecuredKey & ResponseCode)
- * This is exactly what `buildReturnSignature` (the "documented" variant below)
- * produces, and it is what should match in practice.
+ * documents the return signature as raw concatenated values
+ * (MD5(OrderID & TransactionID & KuickpaySecuredKey & ResponseCode)), but that
+ * does NOT match what Kuickpay's live system actually sends — confirmed by
+ * testing against a real transaction. Kuickpay support confirmed the real
+ * format is a key=value list, which is what `buildReturnSignature` (the
+ * "documented" variant below) now produces.
  *
  * The extra variants are kept only as a diagnostic safety net for older/other
  * institution configs — every one of them still requires the secured key, so
