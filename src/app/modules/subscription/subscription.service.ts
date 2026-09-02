@@ -34,11 +34,15 @@ const createSubscriptionSession = async (userId: string, packageId: string) => {
   if (!user) throw new Error("User not found");
 
 
-  // Free trial
+  // Free trial — only available to users who have never had ANY subscription
+  // before (paid or free), not just this specific free package.
   if (pkg.isFreeTrial) {
-    const hasUsedFreePlan = await Subscription.exists({ user: userId, package: packageId });
-    if (hasUsedFreePlan) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, "You have already used the free plan");
+    const hasAnySubscription = await Subscription.exists({ user: userId });
+    if (hasAnySubscription) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        "Free trial is only available to new users who haven't subscribed before"
+      );
     }
 
     const subscription = await Subscription.create({

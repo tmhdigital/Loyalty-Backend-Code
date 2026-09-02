@@ -73,12 +73,17 @@ const updatePackageToDB = async (id: string, payload: Partial<IPackage>): Promis
         duration: payload.duration,
         admin: existingPackage.admin,
         status: "Active",
-        _id: { $ne: id }, 
+        _id: { $ne: id },
     });
 
     if (duplicate) {
         throw new ApiError(400, `Package already exists for ${payload.duration}`);
     }
+    }
+
+    // 🔹 Keep isFreeTrial in sync with price on edit too (not just on create)
+    if (payload.price !== undefined) {
+        payload.isFreeTrial = payload.price === 0;
     }
 
     // Update Stripe product
