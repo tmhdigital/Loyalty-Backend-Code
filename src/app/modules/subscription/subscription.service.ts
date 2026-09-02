@@ -12,6 +12,8 @@ import { grantReferralBonusOnSubscription } from "../referral/referral.helper";
 // import { NotificationType } from "../notification/notification.model";
 import { calculateEndDate } from "../../../helpers/dateHelper";
 import { SUBSCRIPTION_STATUS } from "../../../enums/user";
+import ApiError from "../../../errors/ApiErrors";
+import { StatusCodes } from "http-status-codes";
 
 
 // =========================
@@ -35,7 +37,9 @@ const createSubscriptionSession = async (userId: string, packageId: string) => {
   // Free trial
   if (pkg.isFreeTrial) {
     const hasUsedFreePlan = await Subscription.exists({ user: userId, package: packageId });
-    if (hasUsedFreePlan) throw new Error("You have already used the free plan");
+    if (hasUsedFreePlan) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "You have already used the free plan");
+    }
 
     const subscription = await Subscription.create({
       user: userId,
