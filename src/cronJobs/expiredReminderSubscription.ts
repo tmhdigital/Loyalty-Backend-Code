@@ -11,7 +11,7 @@ export const expireReminderSubscriptionsJob = async () => {
     const startOfToday = new Date(today);
     startOfToday.setUTCHours(0, 0, 0, 0);
 
-    const reminderDays = [30, 15, 7];
+    const reminderDays = [30, 15, 7, 1];
 
     const subscriptions = await Subscription.find({ status: "active" })
       .select("user currentPeriodEnd");
@@ -31,8 +31,9 @@ export const expireReminderSubscriptionsJob = async () => {
         continue;
       }
 
-      const title = `Your subscription expires in ${remainingDays} days`;
-      const body = `Hello! Your subscription will expire in ${remainingDays} days.`;
+      const dayLabel = remainingDays === 1 ? "day" : "days";
+      const title = `Your subscription expires in ${remainingDays} ${dayLabel}`;
+      const body = `Hello! Your subscription will expire in ${remainingDays} ${dayLabel}.`;
 
       await sendNotification({
         userIds: [sub.user],
