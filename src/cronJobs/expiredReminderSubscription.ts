@@ -50,13 +50,19 @@ export const expireReminderSubscriptionsJob = async () => {
       const title = `Your "${packageName}" Membership expires in ${remainingDays} ${dayLabel}`;
       const body = `Hello! Your "${packageName}" Membership will expire in ${remainingDays} ${dayLabel}.`;
 
-      await sendNotification({
-        userIds: [sub.user],
-        title,
-        body,
-        type: NotificationType.MANUAL,
-        channel: { socket: true, push: false },
-      });
+      // Isolate each send so one failure doesn't stop reminders for the rest
+      // of today's batch.
+      try {
+        await sendNotification({
+          userIds: [sub.user],
+          title,
+          body,
+          type: NotificationType.MANUAL,
+          channel: { socket: true, push: false },
+        });
+      } catch (error) {
+        logger.error(`Failed to send reminder notification to user ${sub.user}`, error);
+      }
     }
   } catch (error) {
     logger.error("Something failed", error);

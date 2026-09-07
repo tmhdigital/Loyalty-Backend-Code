@@ -80,15 +80,22 @@ export const expireSubscriptionsJob = async () => {
 
     // 🔹 Send notifications — same scoping as the User-flag update above.
     // Sent per-subscription (not batched) since each user's package name differs.
+    // Each send is isolated: these subscriptions are already flipped to
+    // "expired" above, so tomorrow's cron won't retry them — one failed send
+    // must not stop the rest of the batch from being notified.
     for (const sub of currentPlanExpirations) {
       const packageName = (sub.package as any)?.title || "Membership";
-      await sendNotification({
-        userIds: [sub.user],
-        title: `Your "${packageName}" Membership has expired`,
-        body: `Your "${packageName}" Membership has expired. Please renew to continue enjoying our services.`,
-        type: NotificationType.SYSTEM,
-        channel: { socket: true, push: true },
-      });
+      try {
+        await sendNotification({
+          userIds: [sub.user],
+          title: `Your "${packageName}" Membership has expired`,
+          body: `Your "${packageName}" Membership has expired. Please renew to continue enjoying our services.`,
+          type: NotificationType.SYSTEM,
+          channel: { socket: true, push: true },
+        });
+      } catch (error) {
+        logger.error(`Failed to send expiry notification to user ${sub.user}`, error);
+      }
     }
 
     logger.info("[CRON] Expired subscription notifications sent");
