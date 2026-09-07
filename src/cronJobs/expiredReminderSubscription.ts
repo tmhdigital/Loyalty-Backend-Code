@@ -13,11 +13,25 @@ export const expireReminderSubscriptionsJob = async () => {
 
     const reminderDays = [30, 15, 7, 1];
 
+    // A user can end up with more than one "active" subscription row (e.g. they
+    // bought a 1-month plan, then bought a 1-year plan 5 days later — the old
+    // row isn't touched and stays "active" until its own end date). Only the
+    // most recently started subscription is the one the user actually cares
+    // about, so sort newest-first and keep just one row per user.
     const subscriptions = await Subscription.find({ status: "active" })
-      .select("user currentPeriodEnd");
+      .select("user currentPeriodEnd currentPeriodStart package")
+      .populate("package", "title")
+      .sort({ currentPeriodStart: -1 });
 
-    for (const sub of subscriptions) {
-      
+    const seenUsers = new Set<string>();
+    const currentSubscriptions = subscriptions.filter((sub) => {
+      const userId = sub.user.toString();
+      if (seenUsers.has(userId)) return false;
+      seenUsers.add(userId);
+      return true;
+    });
+
+    for (const sub of currentSubscriptions) {
 
       const endDate = sub.currentPeriodEnd as Date;
 
@@ -32,8 +46,9 @@ export const expireReminderSubscriptionsJob = async () => {
       }
 
       const dayLabel = remainingDays === 1 ? "day" : "days";
-      const title = `Your subscription expires in ${remainingDays} ${dayLabel}`;
-      const body = `Hello! Your subscription will expire in ${remainingDays} ${dayLabel}.`;
+      const packageName = (sub.package as any)?.title || "Membership";
+      const title = `Your "${packageName}" Membership expires in ${remainingDays} ${dayLabel}`;
+      const body = `Hello! Your "${packageName}" Membership will expire in ${remainingDays} ${dayLabel}.`;
 
       await sendNotification({
         userIds: [sub.user],

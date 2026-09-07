@@ -16,7 +16,7 @@ import Referral from "../referral/referral.model";
 import { grantReferralBonusOnSubscription } from "../referral/referral.helper";
 import PointTransaction from "../pointTransaction/pointTransaction.model";
 import { sendPushNotification } from "../../../helpers/sendPushNotification";
-import { IPackage } from "../package/package.interface";
+import { resolveNewSubscriptionPeriod } from "../../../helpers/subscriptionPeriod";
 
 // const createSalesRepData = async (user: JwtPayload, packageId: string) => {
 
@@ -222,7 +222,11 @@ const validateToken = async (userId: string, token: string) => {
   await result.save();
 
 
-  // this is for test purpose
+  const { currentPeriodStart, currentPeriodEnd } = await resolveNewSubscriptionPeriod(
+    userId,
+    existingPackage.duration
+  );
+
   const subscriptionData: Partial<ISubscription> = {
     user: new Types.ObjectId(userId),
     package: new Types.ObjectId(result.packageId),
@@ -230,12 +234,8 @@ const validateToken = async (userId: string, token: string) => {
     customerId: userId,
     subscriptionId: new Date().toISOString(),
     remaining: 0,
-    currentPeriodStart: new Date(),
-    currentPeriodEnd: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 30);
-      return d;
-    })(),
+    currentPeriodStart,
+    currentPeriodEnd,
     trxId: "N/A",
     status: "active",
     source: "salesRep",
@@ -310,30 +310,19 @@ const validateToken = async (userId: string, token: string) => {
 
 
 
-const getDurationInDays = (duration: IPackage['duration']): number => {
-  switch (duration) {
-    case '1 month':
-      return 30;
-    case '4 months':
-      return 120;
-    case '8 months':
-      return 240;
-    case '1 year':
-      return 365;
-    default:
-      return 30; // fallback
-  }
-};
-
 const activateAccount = async (id: string) => {
 
   const salesRep = await SalesRep.findById(id);
   if (!salesRep) throw new ApiError(StatusCodes.NOT_FOUND, "Sales rep not found");
 
 
-  const packageData = await Package.findById(salesRep.packageId).select("price durationInDays");
+  const packageData = await Package.findById(salesRep.packageId).select("price duration");
   if (!packageData) throw new ApiError(StatusCodes.NOT_FOUND, "Package not found");
 
+  const { currentPeriodStart, currentPeriodEnd } = await resolveNewSubscriptionPeriod(
+    salesRep.customerId,
+    packageData.duration
+  );
 
   const subscriptionData: Partial<ISubscription> = {
     user: new Types.ObjectId(salesRep.customerId),
@@ -342,13 +331,8 @@ const activateAccount = async (id: string) => {
     customerId: salesRep.customerId.toString(),
     subscriptionId: "SALESREP_" + new Date().toISOString(),
     remaining: 0,
-    currentPeriodStart: new Date(),
-    currentPeriodEnd: (() => {
-      const d = new Date();
-      const duration = getDurationInDays(packageData.duration) || 30;
-      d.setDate(d.getDate() + duration);
-      return d;
-    })(),
+    currentPeriodStart,
+    currentPeriodEnd,
     trxId: "N/A",
     status: "active",
     source: "salesRep",

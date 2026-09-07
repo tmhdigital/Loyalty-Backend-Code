@@ -15,7 +15,9 @@ export const expireSubscriptionsJob = async () => {
     const expiredSubscriptions = await Subscription.find({
       status: "active",
       currentPeriodEnd: { $lt: now },
-    }).select("_id user currentPeriodEnd");
+    })
+      .select("_id user currentPeriodEnd currentPeriodStart package")
+      .populate("package", "title");
 
     logger.info(`📉 Found ${expiredSubscriptions.length} expired subscriptions`);
 
@@ -25,7 +27,10 @@ export const expireSubscriptionsJob = async () => {
       return;
     }
 
-    // 🔹 Bulk update Subscriptions
+    // 🔹 Bulk update Subscriptions — every stale row auto-expires on its own
+    // end date, unchanged, regardless of whether the user has since bought a
+    // newer plan (old plans are never touched at purchase time — see
+    // resolveNewSubscriptionPeriod).
     const subscriptionBulkOps = expiredSubscriptions.map((sub) => ({
       updateOne: {
         filter: { _id: sub._id },
@@ -33,8 +38,31 @@ export const expireSubscriptionsJob = async () => {
       },
     }));
 
-    // 🔹 Bulk update Users
-    const userBulkOps = expiredSubscriptions.map((sub) => ({
+    if (subscriptionBulkOps.length) {
+      await Subscription.bulkWrite(subscriptionBulkOps);
+    }
+
+    // A user can hold more than one "active" row at once — a new purchase
+    // carries the old plan's remaining time forward but leaves the old row
+    // itself alone to expire naturally. So only touch the User-level flags,
+    // and only notify, when the row that just expired is actually the
+    // user's current/latest plan; otherwise a superseded old row expiring
+    // would wrongly mark an actively-subscribed user as inactive.
+    const latestPerUser = await Subscription.aggregate([
+      { $match: { user: { $in: expiredSubscriptions.map((sub) => sub.user) } } },
+      { $sort: { currentPeriodStart: -1 } },
+      { $group: { _id: "$user", latestSubId: { $first: "$_id" } } },
+    ]);
+    const latestSubIdByUser = new Map(
+      latestPerUser.map((row) => [row._id.toString(), row.latestSubId.toString()])
+    );
+
+    const currentPlanExpirations = expiredSubscriptions.filter(
+      (sub) => latestSubIdByUser.get(sub.user.toString()) === sub._id.toString()
+    );
+
+    // 🔹 Bulk update Users — only for users whose current plan just expired
+    const userBulkOps = currentPlanExpirations.map((sub) => ({
       updateOne: {
         filter: { _id: sub.user },
         update: {
@@ -46,25 +74,22 @@ export const expireSubscriptionsJob = async () => {
       },
     }));
 
-    // Execute bulk updates
-    if (subscriptionBulkOps.length) {
-      await Subscription.bulkWrite(subscriptionBulkOps);
-    }
-
     if (userBulkOps.length) {
       await User.bulkWrite(userBulkOps);
     }
 
-    // 🔹 Send notifications
-    const userIds = expiredSubscriptions.map((sub) => sub.user);
-
-    await sendNotification({
-      userIds,
-      title: "Subscription expired",
-      body: "Your subscription has expired. Please renew to continue enjoying our services.",
-      type: NotificationType.SYSTEM,
-      channel: { socket: true, push: true },
-    });
+    // 🔹 Send notifications — same scoping as the User-flag update above.
+    // Sent per-subscription (not batched) since each user's package name differs.
+    for (const sub of currentPlanExpirations) {
+      const packageName = (sub.package as any)?.title || "Membership";
+      await sendNotification({
+        userIds: [sub.user],
+        title: `Your "${packageName}" Membership has expired`,
+        body: `Your "${packageName}" Membership has expired. Please renew to continue enjoying our services.`,
+        type: NotificationType.SYSTEM,
+        channel: { socket: true, push: true },
+      });
+    }
 
     logger.info("[CRON] Expired subscription notifications sent");
     logger.info("========== [CRON] END ==========");

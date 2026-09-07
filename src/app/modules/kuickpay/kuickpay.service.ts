@@ -4,7 +4,7 @@ import { Package } from "../package/package.model";
 import { User } from "../user/user.model";
 import { Subscription } from "../subscription/subscription.model";
 import { KuickpayOrder } from "./kuickpayOrder.model";
-import { calculateEndDate } from "../../../helpers/dateHelper";
+import { resolveNewSubscriptionPeriod } from "../../../helpers/subscriptionPeriod";
 import {
   buildRedirectionSignature,
   getKuickpayRedirectionUrl,
@@ -228,6 +228,10 @@ const activateKuickpayOrder = async (params: {
 
   if (!subscription) {
     try {
+      const { currentPeriodStart, currentPeriodEnd } = await resolveNewSubscriptionPeriod(
+        order.user,
+        pkg.duration
+      );
       subscription = await Subscription.create({
         user: order.user,
         package: order.package,
@@ -235,8 +239,8 @@ const activateKuickpayOrder = async (params: {
         subscriptionId: transactionId,
         customerId: orderId,
         trxId: transactionId,
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: calculateEndDate(pkg.duration),
+        currentPeriodStart,
+        currentPeriodEnd,
         status: "active",
         source: "kuickpay",
         remaining: 1,

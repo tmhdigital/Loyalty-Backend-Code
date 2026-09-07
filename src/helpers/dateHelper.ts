@@ -1,6 +1,5 @@
-export const calculateEndDate = (duration: string): Date => {
-  const startDate = new Date();
-  const endDate = new Date(startDate);
+export const calculateEndDate = (duration: string, fromDate: Date = new Date()): Date => {
+  const endDate = new Date(fromDate);
 
   switch (duration) {
     case "1 month":
