@@ -88,7 +88,7 @@ export const expireSubscriptionsJob = async () => {
       try {
         await sendNotification({
           userIds: [sub.user],
-          title: `Your "${packageName}" Membership has expired`,
+          title: `Your Membership plan has been expired.`,
           body: `Your "${packageName}" Membership has expired. Please renew to continue enjoying our services.`,
           type: NotificationType.SYSTEM,
           channel: { socket: true, push: true },

@@ -132,7 +132,7 @@ const sendNotificationToAllUsers = async (
       },
       channel: {
         socket: true,
-        push: true,
+        push: false,
       },
     });
 
