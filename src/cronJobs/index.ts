@@ -82,6 +82,30 @@ export const startCronJobs = () => {
       }
     });
     cronTasks.push(reminderTask);
+
+    // 🧪 LOCAL TESTING ONLY — runs the same two subscription jobs every 30s
+    // instead of once a day, so you can watch reminder/expiry notifications
+    // fire in real time against a subscription whose currentPeriodEnd you've
+    // set a few minutes out, instead of waiting for real month/year durations.
+    // Double-gated: needs an explicit opt-in flag AND refuses to run if
+    // NODE_ENV is "production", even if the flag is left on by mistake.
+    if (
+      process.env.ENABLE_FAST_TEST_CRON === "true" &&
+      process.env.NODE_ENV !== "production"
+    ) {
+      logger.warn(
+        "[CRON] ⚠️ ENABLE_FAST_TEST_CRON is on — subscription expire/reminder jobs are running every 30s. Do not enable this in production."
+      );
+      const fastTestTask = cron.schedule("*/30 * * * * *", async () => {
+        try {
+          await expireSubscriptionsJob();
+          await expireReminderSubscriptionsJob();
+        } catch (error) {
+          logger.error("[CRON][TEST] Fast test cron run failed", error);
+        }
+      });
+      cronTasks.push(fastTestTask);
+    }
     // ⚠️ Keep whatever other cron.schedule(...) calls you already had here,
     //    inside this same guarded block. (Times above are placeholders that
     //    match your original file — do not change them unless you intend to.)

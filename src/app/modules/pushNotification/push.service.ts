@@ -150,8 +150,6 @@ const sendNotificationToAllUsers = async (
       }
     });
 
-
-
     return {
       sentCount: response.successCount,
       failedCount: response.failureCount,

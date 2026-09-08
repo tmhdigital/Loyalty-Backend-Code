@@ -9,6 +9,7 @@ import {
 import { INotification } from "../app/modules/notification/notification.interface";
 
 import { getIO } from "../utils/socket";
+import { sendPushNotification } from "./sendPushNotification";
 
 interface SendNotificationInput {
   userIds: Types.ObjectId[] | string[];
@@ -48,15 +49,19 @@ export const sendNotification = async ({
     { ordered: false }
   );
 
+  // Fetched once, shared by the socket and push steps below
+  const users =
+    channel.socket || channel.push
+      ? await User.find({ _id: { $in: userIds } }).select(
+          "_id socketIds fcmToken"
+        )
+      : [];
+
   // 2. Socket emit
   if (channel.socket) {
     const io = getIO();
 
     if (io) {
-      const users = await User.find({
-        _id: { $in: userIds },
-      }).select("_id socketIds");
-
       const notificationMap = new Map<string, INotification[]>();
 
       notifications.forEach((notification) => {
@@ -85,9 +90,13 @@ export const sendNotification = async ({
     }
   }
 
-  // 3. Push notification future implementation
+  // 3. Push notification
   if (channel.push) {
-    // FCM / APNS
+    await Promise.all(
+      users
+        .filter((user) => user.fcmToken)
+        .map((user) => sendPushNotification(user.fcmToken as string, title, body))
+    );
   }
 
   return notifications;
