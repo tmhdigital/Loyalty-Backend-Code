@@ -3,9 +3,11 @@ import { IPushPayload} from "./push.interface";
 
 import { User } from "../user/user.model";
 import admin from "../../../config/firebase";
+import type { MulticastMessage } from "firebase-admin/messaging";
 import { DigitalCard } from "../customer/digitalCard/digitalCard.model";
 import { Types } from "mongoose";
 import { sendNotification } from "../../../helpers/notificationsHelper";
+import { removeInvalidFcmTokens } from "../../../helpers/removeInvalidFcmTokens";
 import { NotificationType } from "../notification/notification.model";
 import { Sell } from "../merchant/merchantSellManagement/merchantSellManagement.model";
 import { MerchantCustomer } from "../merchant/merchantCustomer/merchantCustomer.model";
@@ -106,10 +108,20 @@ const sendNotificationToAllUsers = async (
 
     const tokens = Array.from(tokenSet);
     // Firebase payload
-    const message = {
+    // android/apns blocks: high priority + sound so the notification pops up
+    // (heads-up on Android, banner on iOS) instead of arriving silently.
+    const message: MulticastMessage = {
       notification: {
         title,
         body,
+      },
+      android: {
+        priority: "high",
+        notification: { channelId: "high_importance_channel", sound: "default" },
+      },
+      apns: {
+        headers: { "apns-priority": "10" },
+        payload: { aps: { sound: "default" } },
       },
       tokens,
     };
@@ -119,6 +131,8 @@ const sendNotificationToAllUsers = async (
     const response = await admin
       .messaging()
       .sendEachForMulticast(message);
+
+    await removeInvalidFcmTokens(tokens, response);
 
 
 
@@ -337,20 +351,43 @@ const sendMerchantPromotion = async (payload: any, merchantId: string) => {
   }
 
   // ================= FIREBASE =================
-  const firebaseMessage = {
+  // FCM rejects the whole message if imageUrl is not an absolute https URL,
+  // so a bad/relative image only drops the picture, not the notification.
+  const imageUrl =
+    typeof image === "string" && /^https:\/\//i.test(image) ? image : undefined;
+
+  const firebaseMessage: MulticastMessage = {
     notification: {
       title,
       body: message,
-      image,
+      ...(imageUrl && { imageUrl }),
     },
     data: {
       type: "promotion",
       merchantId: merchantId.toString(),
+      // read by the customer app to show the image in foreground notifications
+      ...(imageUrl && { image: imageUrl }),
+    },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "high_importance_channel",
+        sound: "default",
+        ...(imageUrl && { imageUrl }),
+      },
+    },
+    apns: {
+      headers: { "apns-priority": "10" },
+      // mutableContent lets the iOS Notification Service Extension attach the image
+      payload: { aps: { mutableContent: true, sound: "default" } },
+      ...(imageUrl && { fcmOptions: { imageUrl } }),
     },
     tokens,
   };
 
   const response = await admin.messaging().sendEachForMulticast(firebaseMessage);
+
+  await removeInvalidFcmTokens(tokens, response);
 
   // ================= SOCKET =================
   await sendNotification({
