@@ -16,6 +16,12 @@ import { loginUserFromDB, logoutUserFromDB } from './login.service';
 import { forgetPasswordToDB, resetPasswordToDB, changePasswordToDB } from './password.service';
 import { resendOtpToDB, verifyOtpToDB, verifyEmailToDB } from './otp.service';
 import { googleLoginToDB } from './google-oauth.service';
+import {
+  sendPhoneOtpToDB,
+  verifyPhoneOtpToDB,
+  applyReferralToDB,
+  sendDeleteAccountOtpToDB,
+} from './account-onboarding.service';
 import { uploadDocumentImagesToDB } from './document.service';
 import { archiveUserInDB } from './archive.service';
 
@@ -54,17 +60,41 @@ export const deleteUserFromDB = async (user: JwtPayload, password: string): Prom
   }, { new: true });
 };
 
-export const deleteOwnUserAccount = async (userId: string, password: string) => {
-  if (!userId || !password) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "User ID and password are required");
+/**
+ * Password accounts confirm with their password; accounts without one
+ * (Google sign-up) confirm with the SMS code from /delete-account/send-otp.
+ */
+export const deleteOwnUserAccount = async (
+  userId: string,
+  { password, oneTimeCode }: { password?: string; oneTimeCode?: number }
+) => {
+  if (!userId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User ID is required");
   }
-  const user = await User.findById(userId).select("+password");
+  const user = await User.findById(userId).select("+password +authentication");
   if (!user) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
-  const isMatch = await User.isMatchPassword(password, user.password as string);
-  if (!isMatch) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Password is incorrect");
+
+  if (user.password) {
+    if (!password) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Password is required");
+    }
+    const isMatch = await User.isMatchPassword(password, user.password);
+    if (!isMatch) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Password is incorrect");
+    }
+  } else {
+    const otpInfo = user.authentication?.phoneOTP;
+    if (!oneTimeCode) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "Verification code is required");
+    }
+    if (!otpInfo?.code || otpInfo.code !== oneTimeCode) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "You provided wrong OTP");
+    }
+    if (!otpInfo.expireAt || otpInfo.expireAt < new Date()) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, "OTP already expired, request new one");
+    }
   }
   await User.findByIdAndUpdate(userId, {
     $set: { status: USER_STATUS.SUSPENDED, isDeleted: true, deletedAt: new Date() },
@@ -140,4 +170,8 @@ export const AuthService = {
   archiveUserInDB,
   googleLoginToDB,
   logoutUserFromDB,
+  sendPhoneOtpToDB,
+  verifyPhoneOtpToDB,
+  applyReferralToDB,
+  sendDeleteAccountOtpToDB,
 };

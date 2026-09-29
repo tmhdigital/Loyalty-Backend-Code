@@ -94,8 +94,12 @@ export const changePasswordToDB = async (user: JwtPayload, payload: IChangePassw
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
-  if (currentPassword && !(await User.isMatchPassword(currentPassword, isExistUser.password as string))) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
+  // Current password is mandatory whenever one exists; accounts without a
+  // password (Google sign-up) can set their first one directly.
+  if (isExistUser.password) {
+    if (!currentPassword || !(await User.isMatchPassword(currentPassword, isExistUser.password))) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is incorrect');
+    }
   }
   if (currentPassword === newPassword) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Please give different password from current password');

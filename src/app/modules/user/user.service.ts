@@ -19,7 +19,7 @@ import { createUniqueReferralId } from "../../../utils/generateReferralId";
 // import { sendOtp } from "../../../config/m3sms";
 import { sendOtp } from "../../../config/veevoTechOtp";
 import { generateCustomUserId } from "./user.utils";
-import Referral from "../referral/referral.model";
+import { applyReferralToUser } from "./applyReferral";
 import { sendNotification } from "../../../helpers/notificationsHelper";
 import { NotificationType } from "../notification/notification.model";
 import { logger } from "../../../shared/logger";
@@ -106,23 +106,7 @@ const createUserToDB = async (payload: CreateUserPayload): Promise<IUser> => {
 
   // 4️⃣ Handle referral if exists
   if (payload?.referredId && !user.referredInfo) {
-    const referrer = await User.findOne({ referenceId: payload.referredId });
-    if (!referrer) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, "Referred Id Invalid!");
-    }
-
-    const referredInfo = {
-      referredId: payload.referredId,
-      referredBy: `${referrer.firstName} ${referrer.lastName || ""}`,
-      referredUserId: referrer._id, // ✅ ObjectId stored for referral logic
-    };
-
-    await User.findByIdAndUpdate(user._id, { $set: { referredInfo } });
-
-    await Referral.create({
-      referrer: referrer._id,
-      referredUser: user._id,
-    });
+    await applyReferralToUser(user._id!, payload.referredId);
   }
 
   // 5️⃣ Generate OTP
@@ -217,11 +201,17 @@ const getUserProfileFromDB = async (
     (sub) => sub.package?.isFreeTrial === true
   );
 
+  // Accounts created with Google have no password until they set one
+  const hasPassword = Boolean(
+    await User.exists({ _id, password: { $exists: true, $nin: [null, ""] } })
+  );
+
   return {
     ...isExistUser,
     subscriptions: formattedSubscriptions,
     totalSubscriptions: subscriptions.length,
     hasUsedFreePlan, // ✅ NEW FIELD
+    hasPassword,
   };
 };
 

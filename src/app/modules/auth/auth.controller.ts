@@ -212,13 +212,13 @@ const deleteOwnUser = catchAsync(async (req: Request, res: Response) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'User ID missing in request token');
   }
 
-  const { password } = req.body;
+  // password for password accounts, oneTimeCode for Google-only accounts
+  const { password, oneTimeCode } = req.body;
 
-  if (!password) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Password is required');
-  }
-
-  const data = await AuthService.deleteOwnUserAccount(userId, password);
+  const data = await AuthService.deleteOwnUserAccount(userId, {
+    password,
+    oneTimeCode: oneTimeCode !== undefined ? Number(oneTimeCode) : undefined,
+  });
 
   sendResponse(res, {
     success: true,
@@ -335,14 +335,74 @@ const archiveUser = catchAsync(async (req: Request, res: Response) => {
    GOOGLE LOGIN
 ---------------------------------------- */
 const googleLogin = catchAsync(async (req: Request, res: Response) => {
-  const { idToken, role } = req.body;
+  const { idToken, fcmToken } = req.body;
 
-  const data = await AuthService.googleLoginToDB(idToken, role);
+  const data = await AuthService.googleLoginToDB(idToken, fcmToken);
+
+  // Customer app only, so same refresh cookie as password login with device "user"
+  res.cookie(getRefreshCookieName('user'), data.refreshToken, refreshCookieOptions);
 
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
     message: 'User login successfully',
+    data,
+  });
+});
+
+/* ----------------------------------------
+   GOOGLE SIGN-UP: PHONE + REFERRAL STEPS
+---------------------------------------- */
+const sendPhoneOtp = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req.user as any)?._id;
+
+  const data = await AuthService.sendPhoneOtpToDB(userId, req.body.phone);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'We sent a code to your phone',
+    data,
+  });
+});
+
+const verifyPhoneOtp = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req.user as any)?._id;
+
+  const data = await AuthService.verifyPhoneOtpToDB(userId, req.body.oneTimeCode);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Phone number verified',
+    data,
+  });
+});
+
+const applyReferral = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req.user as any)?._id;
+
+  await AuthService.applyReferralToDB(userId, req.body.referralId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Referral applied successfully',
+  });
+});
+
+/* ----------------------------------------
+   DELETE ACCOUNT OTP (accounts without password)
+---------------------------------------- */
+const sendDeleteAccountOtp = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req.user as any)?._id;
+
+  const data = await AuthService.sendDeleteAccountOtpToDB(userId);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'We sent a code to your phone',
     data,
   });
 });
@@ -365,4 +425,8 @@ export const AuthController = {
   archiveUser,
   googleLogin,
   logoutUser,
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  applyReferral,
+  sendDeleteAccountOtp,
 };
