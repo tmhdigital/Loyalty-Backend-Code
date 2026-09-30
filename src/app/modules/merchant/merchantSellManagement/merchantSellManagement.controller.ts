@@ -6,6 +6,7 @@ import { SellService } from "./merchantSellManagement.service";
 import { IUser } from "../../user/user.interface";
 import { Types } from "mongoose";
 import ExcelJ from "exceljs";
+import { USER_ROLES } from "../../../../enums/user";
 
 // 🔹 Demo data fallback
 
@@ -329,9 +330,15 @@ const getMerchantSales = async (req: Request, res: Response) => {
     // -----------------------------
     // 7️⃣ Response
     // -----------------------------
+    // "User" (view-only) dashboard accounts must not see customer contact details
+    const data =
+      user.role === USER_ROLES.VIEW_MERCHANT
+        ? transactionData.map(({ email, phone, ...rest }: any) => rest)
+        : transactionData;
+
     return res.status(200).json({
       success: true,
-      data: transactionData,
+      data,
       pagination: {
         page,
         limit,
