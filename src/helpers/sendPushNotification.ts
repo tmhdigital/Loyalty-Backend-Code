@@ -8,10 +8,20 @@ export const sendPushNotification = async (fcmToken: string, title: string, body
 
   
 
-  const message = {
+  // android/apns blocks: high priority + sound so the notification pops up
+  // (same as push.service.ts; the channel is created by both apps)
+  const message: admin.messaging.Message = {
     token: fcmToken,
     notification: { title, body },
     data: data || {},
+    android: {
+      priority: "high",
+      notification: { channelId: "high_importance_channel", sound: "default" },
+    },
+    apns: {
+      headers: { "apns-priority": "10" },
+      payload: { aps: { sound: "default" } },
+    },
   };
 
   try {
