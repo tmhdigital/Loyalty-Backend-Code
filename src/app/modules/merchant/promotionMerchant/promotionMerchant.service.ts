@@ -154,7 +154,8 @@ const getDetailsOfMerchant = async (merchantId: string, userId?: string) => {
   // Merchant profile + (optional) user validity fetched in parallel.
   const [merchant, user] = await Promise.all([
     User.findById(merchantId)
-      .select("firstName businessName location profile website")
+      // photo = cover photo (uploaded as `coverPhoto` from the dashboard)
+      .select("firstName businessName location profile photo website")
       .lean(),
     userId ? User.findById(userId).select("status").lean() : Promise.resolve(null),
   ]);
