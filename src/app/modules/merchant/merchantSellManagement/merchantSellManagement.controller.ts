@@ -333,7 +333,7 @@ const getMerchantSales = async (req: Request, res: Response) => {
     // "User" (view-only) dashboard accounts must not see customer contact details
     const data =
       user.role === USER_ROLES.VIEW_MERCHANT
-        ? transactionData.map(({ email, phone, ...rest }: any) => rest)
+        ? transactionData.map(({ email: _email, phone: _phone, ...rest }: any) => rest)
         : transactionData;
 
     return res.status(200).json({
