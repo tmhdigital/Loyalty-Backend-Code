@@ -45,6 +45,14 @@ export const loginUserFromDB = async (
     );
   }
 
+  // Account created with Google has no password yet
+  if (!user.password) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      "This account uses Google sign-in. Continue with Google, or use Forgot Password to set a password."
+    );
+  }
+
   const isPasswordValid =
     password && (await User.isMatchPassword(password, user.password));
 
@@ -73,7 +81,15 @@ export const loginUserFromDB = async (
     );
   }
 
-  // session
+  return createLoginSession(user, fcmToken);
+};
+
+/**
+ * Starts a new single-device session: new sessionId (checked by the auth
+ * middleware), access + refresh tokens, and the user summary the apps use
+ * to decide the next screen. Shared by password and Google login.
+ */
+export const createLoginSession = async (user: any, fcmToken?: string) => {
   const sessionId = crypto.randomUUID();
 
   const hashedSessionId = crypto.createHash("sha256").update(sessionId).digest("hex");

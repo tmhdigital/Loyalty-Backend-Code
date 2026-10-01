@@ -114,4 +114,37 @@ router.delete(
 
 router.post("/google", validateRequest(AuthValidation.googleLoginZodSchema), AuthController.googleLogin)
 
+// Google sign-up steps (logged-in customer)
+router.post(
+    '/phone/send-otp',
+    auth(USER_ROLES.USER),
+    validateRequest(AuthValidation.sendPhoneOtpZodSchema),
+    AuthController.sendPhoneOtp
+);
+
+router.post(
+    '/phone/verify',
+    auth(USER_ROLES.USER),
+    (req: Request, _res: Response, next: NextFunction) => {
+        req.body = { oneTimeCode: Number(req.body?.oneTimeCode) };
+        next();
+    },
+    validateRequest(AuthValidation.verifyPhoneOtpZodSchema),
+    AuthController.verifyPhoneOtp
+);
+
+router.post(
+    '/referral/apply',
+    auth(USER_ROLES.USER),
+    validateRequest(AuthValidation.applyReferralZodSchema),
+    AuthController.applyReferral
+);
+
+// Code for deleting an account that has no password
+router.post(
+    '/delete-account/send-otp',
+    auth(),
+    AuthController.sendDeleteAccountOtp
+);
+
 export const AuthRoutes = router;

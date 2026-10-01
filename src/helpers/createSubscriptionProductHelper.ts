@@ -8,6 +8,41 @@ export type StripeProductResult = {
   priceId: string;
 };
 
+/** productId/priceId stored for price-0 plans; no Stripe product exists for them. */
+export const FREE_PLAN_ID = "FREE_PLAN";
+
+/**
+ * Recurring Stripe price matching the package duration
+ * (e.g. "4 months" -> every 4 months). Shared by create and edit.
+ */
+export const createRecurringPrice = async (
+  productId: string,
+  price: number,
+  duration: string
+): Promise<string> => {
+  // 🔹 Extract number from duration (e.g. "4 months" → 4)
+  const durationNumber = parseInt(
+    duration.toString().match(/\d+/)?.[0] || "1"
+  );
+
+  // 🔹 Detect interval type
+  const interval: "month" | "year" = duration.toLowerCase().includes("year")
+    ? "year"
+    : "month";
+
+  const stripePrice = await stripe.prices.create({
+    product: productId,
+    unit_amount: Math.round(price * 100), // cents
+    currency: "usd",
+    recurring: {
+      interval,
+      interval_count: durationNumber, // supports 4 months, 2 years, etc.
+    },
+  });
+
+  return stripePrice.id;
+};
+
 export const createSubscriptionProduct = async (
   payload: Partial<IPackage>
 ): Promise<StripeProductResult> => {
@@ -24,8 +59,8 @@ export const createSubscriptionProduct = async (
   // 🔹 Free plan handle
   if (price === 0) {
     return {
-      productId: "FREE_PLAN",
-      priceId: "FREE_PLAN",
+      productId: FREE_PLAN_ID,
+      priceId: FREE_PLAN_ID,
     };
   }
 
@@ -35,44 +70,11 @@ export const createSubscriptionProduct = async (
     description: description ?? "",
   });
 
-  // =========================
-  // ✅ FIX START
-  // =========================
-
-  // 🔹 Extract number from duration (e.g. "4 months" → 4)
-  const durationNumber = parseInt(
-    duration.toString().match(/\d+/)?.[0] || "1"
-  );
-
-  // 🔹 Normalize duration string
-  const lowerDuration = duration.toLowerCase();
-
-  // 🔹 Detect interval type
-  let interval: "month" | "year" = "month";
-
-  if (lowerDuration.includes("year")) {
-    interval = "year";
-  } else if (lowerDuration.includes("month")) {
-    interval = "month";
-  }
-
-  // =========================
-  // ✅ FIX END
-  // =========================
-
-  // 2️⃣ Create Stripe Price (🔥 MAIN FIX HERE)
-  const stripePrice = await stripe.prices.create({
-    product: product.id,
-    unit_amount: Math.round(price * 100), // cents
-    currency: "usd",
-    recurring: {
-      interval,
-      interval_count: durationNumber, // ✅ FIX: supports 4 months, 2 years, etc.
-    },
-  });
+  // 2️⃣ Create Stripe Price
+  const priceId = await createRecurringPrice(product.id, price, duration);
 
   return {
     productId: product.id,
-    priceId: stripePrice.id,
+    priceId,
   };
 };

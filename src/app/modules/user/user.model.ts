@@ -177,6 +177,8 @@ const userSchema = new Schema<IUser, UserModal>(
           code: { type: Number, default: null },
           expireAt: { type: Date, default: null },
         },
+        // Phone waiting for OTP confirmation (Google sign-up phone step)
+        pendingPhone: { type: String, default: null },
       },
       select: 0,
     },

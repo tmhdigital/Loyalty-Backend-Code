@@ -500,7 +500,7 @@ const getPointRedeemedAnalytics = catchAsync(async (req: Request, res: Response)
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
-    message: "Point redeemed analytics fetched successfully",
+    message: "Points redeemed analytics fetched successfully",
     data: data,
     pagination: pagination,
   });

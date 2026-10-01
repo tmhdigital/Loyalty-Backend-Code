@@ -15,6 +15,9 @@ export interface IStripeAccountInfo {
 export interface IAuthenticationProps {
   isResetPassword?: boolean;
 
+  // Phone waiting for OTP confirmation (Google sign-up phone step)
+  pendingPhone?: string | null;
+
   // ✅ Identify OTP channel
   resetVia?: "phone" | "email";
 

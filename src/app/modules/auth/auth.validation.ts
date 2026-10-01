@@ -74,8 +74,8 @@ const createResetPasswordZodSchema = z
 const createChangePasswordZodSchema = z
   .object({
     body: z.object({
-      currentPassword: z
-        .string({ required_error: 'Current Password is required' }),
+      // Required by the service when the account already has a password
+      currentPassword: z.string().optional(),
 
       newPassword: z
         .string({ required_error: 'New Password is required' })
@@ -120,12 +120,37 @@ const googleLoginZodSchema = z.object({
     idToken: z
       .string({ required_error: 'ID token is required' }),
 
+    // Ignored: Google sign-in is customer-only. Kept so older app builds still validate.
     role: z
       .enum([
         USER_ROLES.MERCHANT,
         USER_ROLES.USER,
       ])
       .optional(),
+
+    fcmToken: z.string().optional(),
+  }),
+});
+
+const sendPhoneOtpZodSchema = z.object({
+  body: z.object({
+    phone: z
+      .string({ required_error: 'Phone number is required' })
+      .regex(/^\+?[0-9]{7,15}$/, 'Invalid phone number'),
+  }),
+});
+
+const verifyPhoneOtpZodSchema = z.object({
+  body: z.object({
+    oneTimeCode: z.number({ required_error: 'OTP is required' }),
+  }),
+});
+
+const applyReferralZodSchema = z.object({
+  body: z.object({
+    referralId: z
+      .string({ required_error: 'Referral ID is required' })
+      .min(1, 'Referral ID is required'),
   }),
 });
 
@@ -138,4 +163,7 @@ export const AuthValidation = {
   createChangePasswordZodSchema,
   createVerifyOtpZodSchema,
   googleLoginZodSchema,
+  sendPhoneOtpZodSchema,
+  verifyPhoneOtpZodSchema,
+  applyReferralZodSchema,
 };
