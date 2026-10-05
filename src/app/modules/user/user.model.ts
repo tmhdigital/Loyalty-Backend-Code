@@ -92,6 +92,8 @@ const userSchema = new Schema<IUser, UserModal>(
 
     googleId: { type: String },
     appleId: { type: String },
+    // Apple refresh token, kept only to revoke Sign in with Apple on account delete
+    appleRefreshToken: { type: String, select: 0 },
 
     authProviders: {
       type: [String],

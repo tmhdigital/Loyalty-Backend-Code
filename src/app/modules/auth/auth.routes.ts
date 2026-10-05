@@ -113,6 +113,7 @@ router.delete(
 
 
 router.post("/google", validateRequest(AuthValidation.googleLoginZodSchema), AuthController.googleLogin)
+router.post("/apple", validateRequest(AuthValidation.appleLoginZodSchema), AuthController.appleLogin)
 
 // Google sign-up steps (logged-in customer)
 router.post(

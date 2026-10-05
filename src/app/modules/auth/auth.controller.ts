@@ -351,6 +351,32 @@ const googleLogin = catchAsync(async (req: Request, res: Response) => {
 });
 
 /* ----------------------------------------
+   APPLE LOGIN
+---------------------------------------- */
+const appleLogin = catchAsync(async (req: Request, res: Response) => {
+  const { identityToken, rawNonce, authorizationCode, firstName, lastName, fcmToken } = req.body;
+
+  const data = await AuthService.appleLoginToDB({
+    identityToken,
+    rawNonce,
+    authorizationCode,
+    firstName,
+    lastName,
+    fcmToken,
+  });
+
+  // Customer app only, so same refresh cookie as password login with device "user"
+  res.cookie(getRefreshCookieName('user'), data.refreshToken, refreshCookieOptions);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User login successfully',
+    data,
+  });
+});
+
+/* ----------------------------------------
    GOOGLE SIGN-UP: PHONE + REFERRAL STEPS
 ---------------------------------------- */
 const sendPhoneOtp = catchAsync(async (req: Request, res: Response) => {
@@ -424,6 +450,7 @@ export const AuthController = {
   uploadDocumentImages,
   archiveUser,
   googleLogin,
+  appleLogin,
   logoutUser,
   sendPhoneOtp,
   verifyPhoneOtp,

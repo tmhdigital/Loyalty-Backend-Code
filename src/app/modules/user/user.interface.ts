@@ -133,6 +133,7 @@ export interface IUser {
   password?: string;
   googleId?: string;
   appleId?: string;
+  appleRefreshToken?: string;
   authProviders: string[];
   website?: string;
   country?: string;
