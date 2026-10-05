@@ -132,6 +132,19 @@ const googleLoginZodSchema = z.object({
   }),
 });
 
+const appleLoginZodSchema = z.object({
+  body: z.object({
+    identityToken: z.string({ required_error: 'Identity token is required' }),
+    rawNonce: z.string().optional(),
+    // One-time code, exchanged for the refresh token used to revoke on delete
+    authorizationCode: z.string().optional(),
+    // Apple shares the name only on the first sign-in
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    fcmToken: z.string().optional(),
+  }),
+});
+
 const sendPhoneOtpZodSchema = z.object({
   body: z.object({
     phone: z
@@ -163,6 +176,7 @@ export const AuthValidation = {
   createChangePasswordZodSchema,
   createVerifyOtpZodSchema,
   googleLoginZodSchema,
+  appleLoginZodSchema,
   sendPhoneOtpZodSchema,
   verifyPhoneOtpZodSchema,
   applyReferralZodSchema,

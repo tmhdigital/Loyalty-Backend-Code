@@ -16,6 +16,7 @@ import { loginUserFromDB, logoutUserFromDB } from './login.service';
 import { forgetPasswordToDB, resetPasswordToDB, changePasswordToDB } from './password.service';
 import { resendOtpToDB, verifyOtpToDB, verifyEmailToDB } from './otp.service';
 import { googleLoginToDB } from './google-oauth.service';
+import { appleLoginToDB, revokeAppleToken } from './apple-oauth.service';
 import {
   sendPhoneOtpToDB,
   verifyPhoneOtpToDB,
@@ -71,7 +72,7 @@ export const deleteOwnUserAccount = async (
   if (!userId) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User ID is required");
   }
-  const user = await User.findById(userId).select("+password +authentication");
+  const user = await User.findById(userId).select("+password +authentication +appleRefreshToken");
   if (!user) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
@@ -98,7 +99,11 @@ export const deleteOwnUserAccount = async (
   }
   await User.findByIdAndUpdate(userId, {
     $set: { status: USER_STATUS.SUSPENDED, isDeleted: true, deletedAt: new Date() },
+    $unset: { appleRefreshToken: 1 },
   }, { new: true });
+
+  // Apple requires revoking Sign in with Apple when the account is deleted
+  await revokeAppleToken(user.appleRefreshToken);
 };
 
 export const newAccessTokenToUser = async (refreshToken: string) => {
@@ -169,6 +174,7 @@ export const AuthService = {
   uploadDocumentImagesToDB,
   archiveUserInDB,
   googleLoginToDB,
+  appleLoginToDB,
   logoutUserFromDB,
   sendPhoneOtpToDB,
   verifyPhoneOtpToDB,

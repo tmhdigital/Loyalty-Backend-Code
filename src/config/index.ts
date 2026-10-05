@@ -47,6 +47,14 @@ export default {
     google_client_secret: process.env.GOOGLE_CLIENT_SECRET,
     facebook_client_secret: process.env.FACEBOOK_CLIENT_SECRET,
   },
+  // Sign in with Apple (customer iOS app). bundle_id is enough for login;
+  // team_id/key_id/private_key (.p8) are only for revoking on account delete.
+  apple: {
+    bundle_id: process.env.APPLE_BUNDLE_ID,
+    team_id: process.env.APPLE_TEAM_ID,
+    key_id: process.env.APPLE_KEY_ID,
+    private_key: process.env.APPLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+  },
   admin: {
     email: process.env.ADMIN_EMAIL,
     password: process.env.ADMIN_PASSWORD,
