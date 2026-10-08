@@ -66,7 +66,6 @@ const createUserToDB = async (payload: IUser, _creator?: any) => {
       emailTemplate.createAccountNotification({
         email: result.email,
         name: result.firstName || "User",
-        password: payload.password || "password",
       })
     );
   }
@@ -176,7 +175,6 @@ const createMerchantToDB = async (payload: any, creatorUser: any) => {
       emailTemplate.createAccountNotification({
         email: result.email,
         name: result.firstName || "User",
-        password: payload.password || "password",
       })
     );
   }
