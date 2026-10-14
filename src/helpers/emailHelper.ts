@@ -35,6 +35,8 @@ const sendEmail = async (values: ISendEmail) => {
       to: values.to,
       subject: values.subject,
       html: values.html,
+      // Plain-text version: shown by text-only clients and helps spam scoring
+      text: values.text,
     });
 
     logger.info("✅ Mail sent successfully", {

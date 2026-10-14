@@ -230,6 +230,18 @@ export const appleLoginToDB = async ({
         $addToSet: { authProviders: 'apple' },
       });
     }
+
+    // Apple sends the name only on the first sign-in. If it was lost earlier
+    // (the account got the email-prefix fallback), save it now.
+    const emailPrefix = user.email?.split('@')[0];
+    if (firstName?.trim() && user.firstName === emailPrefix) {
+      await User.findByIdAndUpdate(user._id, {
+        $set: {
+          firstName: firstName.trim(),
+          ...(lastName?.trim() && { lastName: lastName.trim() }),
+        },
+      });
+    }
   }
 
   // Keep a refresh token so the account delete can revoke Apple access

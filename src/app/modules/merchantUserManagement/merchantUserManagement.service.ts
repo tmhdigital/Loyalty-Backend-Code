@@ -125,7 +125,6 @@ const createUserToDB = async (
     emailTemplate.createAccountNotification({
       email: user.email,
       name: user.firstName || "User",
-      password: payload.password || "password",
     })
   );
 }
