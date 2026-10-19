@@ -39,12 +39,21 @@ const getAllMerchants = async (query: Record<string, unknown>, user: any) => {
   const userData = await User.findById(userId).select("location").lean();
   const userLocation = userData?.location;
 
-  // 2️⃣ Base query (UPDATED HERE ONLY)
-  let baseQuery = User.find({
+  // 2️⃣ Base query
+  const filter: Record<string, unknown> = {
     role: USER_ROLES.MERCHANT,
     verified: true,
-    isDeleted: { $ne: true }, 
-  });
+    isDeleted: { $ne: true },
+  };
+
+  // Customers only see live merchants; admins still see pending ones to approve.
+  // Admin-created merchants have no approveStatus, so exclude pending/rejected instead of requiring approved.
+  if (user?.role === USER_ROLES.USER) {
+    filter.approveStatus = { $nin: [APPROVE_STATUS.PENDING, APPROVE_STATUS.REJECTED] };
+    filter.status = USER_STATUS.ACTIVE;
+  }
+
+  let baseQuery = User.find(filter);
 
   if (address) {
     baseQuery = baseQuery.find({
@@ -454,6 +463,8 @@ const getNearbyMerchants = async (query: IQuery, userId: string) => {
       $match: {
         role: USER_ROLES.MERCHANT,
         status: USER_STATUS.ACTIVE,
+        approveStatus: { $nin: [APPROVE_STATUS.PENDING, APPROVE_STATUS.REJECTED] },
+        isDeleted: { $ne: true },
       },
     },
     {
