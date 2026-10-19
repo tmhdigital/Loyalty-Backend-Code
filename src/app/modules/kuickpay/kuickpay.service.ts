@@ -102,11 +102,13 @@ const taxAmountStr = Number(0).toFixed(2);
     throw new Error("KUICKPAY_CHECKOUT_IPN_URL not configured");
   }
 
-  // Kuickpay requires OrderID: numeric only, max 18 characters.
-  // Millisecond timestamp (13 digits) + 3 random digits — unique and within limit.
+  // Kuickpay requires OrderID: numeric only. The guide says max 18 characters,
+  // but sandbox testing showed 16+ digits pass Redirection/3DS and then fail at
+  // the final TransactionPost with "Unathorized" — 15 digits is the real limit.
+  // Millisecond timestamp (13 digits) + 2 random digits = 15 digits.
   const orderId = (
-    Date.now().toString() + Math.floor(Math.random() * 1000).toString().padStart(3, "0")
-  ).slice(0, 18);
+    Date.now().toString() + Math.floor(Math.random() * 100).toString().padStart(2, "0")
+  ).slice(0, 15);
 
   await KuickpayOrder.create({
     orderId,
