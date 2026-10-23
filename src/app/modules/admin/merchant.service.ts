@@ -470,6 +470,7 @@ const getNearbyMerchants = async (query: IQuery, userId: string) => {
     {
       $project: {
         firstName: 1,
+        businessName: { $ifNull: ["$businessName", ""] },
         profile: 1,
         distance: 1,
         address: { $ifNull: ["$address", ""] },
@@ -482,7 +483,10 @@ const getNearbyMerchants = async (query: IQuery, userId: string) => {
   if (searchTerm) {
     pipeline.push({
       $match: {
-        firstName: { $regex: searchTerm, $options: "i" },
+        $or: [
+          { firstName: { $regex: searchTerm, $options: "i" } },
+          { businessName: { $regex: searchTerm, $options: "i" } },
+        ],
       },
     });
   }
