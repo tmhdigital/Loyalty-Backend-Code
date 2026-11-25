@@ -352,13 +352,28 @@ const getCombinePromotionsForUserFromDB = async (userId: string) => {
 
   const merchantSegmentMap = new Map(customerRecords.map(c => [c.merchantId.toString(), c.segment]));
 
+  // Card ke "Visit Us" button ke liye merchant ki website (ya social link).
+  const merchantWebsites = await User.find({ _id: { $in: merchantIds } })
+    .select("website")
+    .lean();
+  const merchantWebsiteMap = new Map(
+    merchantWebsites.map((m: any) => [m._id.toString(), m.website])
+  );
+
   // 3️⃣ Merchant-wise segment filtering
   const merchantPromotions: any[] = [];
   for (const promo of allMerchantPromotions) {
-    const userSegment = merchantSegmentMap.get(promo.merchantId.toString()) || "new_customer";
+    const merchantKey = promo.merchantId.toString();
+    const userSegment = merchantSegmentMap.get(merchantKey) || "new_customer";
 
     if (promo.customerSegment === "all_customer" || promo.customerSegment === userSegment) {
-      merchantPromotions.push({ ...promo, source: "merchant", userSegment });
+      merchantPromotions.push({
+        ...promo,
+        // Recent-viewed API jaisi shape: { _id, website }
+        merchantId: { _id: promo.merchantId, website: merchantWebsiteMap.get(merchantKey) },
+        source: "merchant",
+        userSegment,
+      });
     }
   }
 

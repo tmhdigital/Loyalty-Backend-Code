@@ -236,6 +236,7 @@ const getUserAddedPromotions = async (
               promoCode: "$promoCode",
               promotion: "$promotion",
               merchantBusinessName: "$merchant.businessName",
+              merchantWebsite: "$merchant.website",
             },
           },
         ],

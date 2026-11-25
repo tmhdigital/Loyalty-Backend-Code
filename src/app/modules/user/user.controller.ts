@@ -6,6 +6,7 @@ import sendResponse from "../../../shared/sendResponse";
 import ApiError from "../../../errors/ApiErrors";
 import { JwtPayload } from "jsonwebtoken";
 import { getSingleFileUrl } from "../../../shared/getFilePath";
+import { normalizeWebsiteUrl } from "../../../utils/websiteUrl";
 
 // register user
 const createUser = catchAsync(
@@ -60,6 +61,21 @@ const updateProfile = catchAsync(
         statusCode: 400,
         message: "Phone number cannot be changed",
       });
+    }
+
+    // Website / social link: format theek karo, ghalat ho to save na karo.
+    // Yahan isliye ke body kabhi `data` JSON string mein aati hai aur
+    // validateRequest parsed value wapas req.body mein nahi likhta.
+    if (bodyData.website !== undefined) {
+      const website = normalizeWebsiteUrl(bodyData.website);
+      if (!website.ok) {
+        return sendResponse(res, {
+          success: false,
+          statusCode: 400,
+          message: website.error,
+        });
+      }
+      bodyData.website = website.url;
     }
     // FIX: multer ab memoryStorage par hai, `filename` undefined hota tha
     // aur DB mein "/images/undefined" save ho raha tha. Ab middleware ka
