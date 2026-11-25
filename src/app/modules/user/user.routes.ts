@@ -8,13 +8,6 @@ import fileUploadHandler from "../../middlewares/fileUploaderHandler";
 const router = express.Router();
 
 router.get("/profile", auth(), UserController.getUserProfile);
-
-router.post(
-  "/create-admin",
-  validateRequest(UserValidation.createAdminZodSchema),
-  UserController.createAdmin
-);
-
 router.get("/summary-counts", auth(), UserController.getUserSummaryCounts);
 
 router

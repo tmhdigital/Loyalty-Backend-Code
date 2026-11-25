@@ -1,0 +1,85 @@
+{
+  "info": {
+    "name": "Rewaldo Security Tests (LOCAL) - C-01 & M-01",
+    "description": "Local server: http://localhost:5004/api/v1 (start with `npm run dev`). Run the requests in order 1 to 5. Before running 3, set superAdminEmail and superAdminPassword in the collection Variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5004/api/v1" },
+    { "key": "superAdminEmail", "value": "" },
+    { "key": "superAdminPassword", "value": "" },
+    { "key": "accessToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. C-01 | Create admin WITHOUT login (must be 404)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/user/create-admin",
+        "description": "Before fix: 400 (route open). After fix: 404 (route removed)."
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('C-01 FIXED: route removed (404)', () => pm.response.to.have.status(404));"
+      ] } }]
+    },
+    {
+      "name": "2. C-01 | Secure admin route WITHOUT token (must be 401)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/admin/create-admin"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Secure route needs login (401)', () => pm.response.to.have.status(401));"
+      ] } }]
+    },
+    {
+      "name": "3. Login as Super Admin (saves accessToken)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\",\n  \"device\": \"admin\"\n}" },
+        "url": "{{baseUrl}}/auth/login",
+        "description": "Set superAdminEmail and superAdminPassword in the collection Variables first. The token is saved automatically for request 4."
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Login OK (200)', () => pm.response.to.have.status(200));",
+        "const d = pm.response.json().data || {};",
+        "const token = d.accessToken || (d.tokens && d.tokens.accessToken);",
+        "if (token) { pm.collectionVariables.set('accessToken', token); }",
+        "pm.test('accessToken saved', () => pm.expect(token).to.be.a('string'));"
+      ] } }]
+    },
+    {
+      "name": "4. User Management | Create ADMIN user (must still work)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"firstName\": \"Test Admin\",\n  \"email\": \"testadmin-{{$timestamp}}@example.com\",\n  \"phone\": \"+92300{{$randomInt}}{{$randomInt}}\",\n  \"password\": \"Test@12345\",\n  \"role\": \"ADMIN\"\n}" },
+        "url": "{{baseUrl}}/usermanagement",
+        "description": "Regression check: admins are still created from the dashboard flow. Delete the test user afterwards: db.users.deleteMany({ email: /^testadmin-/ })"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Admin user created (200/201)', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"
+      ] } }]
+    },
+    {
+      "name": "5. M-01 | Kuickpay IPN wrong signature (then check log)",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/kuickpay/ipn?OrderId=SECTEST-LOCAL-{{$timestamp}}&TransactionId=TX-SECTEST&ResponseCode=00&Signature=wrongsignature",
+        "description": "Fake order, nothing changes in DB. Then open Loyalty-Backend-Code/winston/success/<latest>.log and search SECTEST-LOCAL. After fix the line must NOT contain 'expected(documented)=' or 'received='."
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Wrong signature rejected (400)', () => pm.response.to.have.status(400));",
+        "pm.test('Response does not leak a signature', () => pm.expect(pm.response.text()).to.not.match(/[a-f0-9]{32}/i));"
+      ] } }]
+    }
+  ]
+}

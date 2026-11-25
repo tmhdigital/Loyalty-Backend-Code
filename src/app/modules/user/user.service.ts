@@ -32,33 +32,6 @@ import { logger } from "../../../shared/logger";
 //   isFreeTrial?: boolean;
 // }
 
-const createAdminToDB = async (payload: any): Promise<IUser> => {
-  // check admin is exist or not;
-  const isExistAdmin = await User.findOne({ email: payload.email });
-  if (isExistAdmin) {
-    throw new ApiError(StatusCodes.CONFLICT, "This Email already taken");
-  }
-  // create admin data
-  const referenceId = await createUniqueReferralId();
-  const adminData = {
-    ...payload,
-    referenceId,
-  };
-  // create admin to db
-  const createAdmin = await User.create(adminData);
-  if (!createAdmin) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, "Failed to create Admin");
-  } else {
-    await User.findByIdAndUpdate(
-      { _id: createAdmin?._id },
-      { verified: true },
-      { new: true }
-    );
-  }
-
-  return createAdmin;
-};
-
 const createUserToDB = async (payload: CreateUserPayload): Promise<IUser> => {
   // 1️⃣ Check if user exists
   const isExitByEmail = await User.isExistUserByEmail(payload.email as string);
@@ -326,7 +299,6 @@ export const UserService = {
   createUserToDB,
   getUserProfileFromDB,
   updateProfileToDB,
-  createAdminToDB,
   getUserOnlineStatusFromDB,
   getUserSummaryCountsFromDB,
 };

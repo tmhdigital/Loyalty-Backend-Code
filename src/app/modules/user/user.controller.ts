@@ -27,21 +27,6 @@ const createUser = catchAsync(
   }
 );
 
-// register admin
-const createAdmin = catchAsync(
-  async (req: Request, res: Response) => {
-    const { ...userData } = req.body;
-    const data = await UserService.createAdminToDB(userData);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: "Admin created successfully",
-      data: data,
-    });
-  }
-);
-
 // retrieved user profile
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
@@ -173,10 +158,8 @@ const getUserSummaryCounts = catchAsync(async (req: Request, res: Response) => {
 
 export const UserController = {
   createUser,
-  createAdmin,
   getUserProfile,
   updateProfile,
   getUserOnlineStatus,
   getUserSummaryCounts
-
 };
