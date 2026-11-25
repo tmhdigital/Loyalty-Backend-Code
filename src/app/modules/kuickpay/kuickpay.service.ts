@@ -334,7 +334,7 @@ const verifyAndActivate = async (
 
   if (!check.valid) {
     logger.error(
-      `Kuickpay ${via} signature mismatch for order ${orderId}. received=${signature} expected(documented)=${check.expected}`
+      `Kuickpay ${via} signature mismatch for order ${orderId}`
     );
     throw new Error("Invalid Kuickpay signature");
   }
@@ -405,7 +405,7 @@ const confirmOrderForUser = async (
 
   if (!check.valid) {
     logger.warn(
-      `Kuickpay app-confirm signature mismatch for order ${orderId}. received=${signature} expected(documented)=${check.expected}`
+      `Kuickpay app-confirm signature mismatch for order ${orderId}`
     );
 
     if (!config.kuickpay.allowUnverifiedConfirm) {

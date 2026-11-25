@@ -6,6 +6,7 @@ import sendResponse from "../../../shared/sendResponse";
 import ApiError from "../../../errors/ApiErrors";
 import { JwtPayload } from "jsonwebtoken";
 import { getSingleFileUrl } from "../../../shared/getFilePath";
+import { normalizeWebsiteUrl } from "../../../utils/websiteUrl";
 
 // register user
 const createUser = catchAsync(
@@ -23,21 +24,6 @@ const createUser = catchAsync(
       success: true,
       statusCode: StatusCodes.OK,
       message: `Enter the verification code sent to your ${destination}. Please verify before login.`,
-    });
-  }
-);
-
-// register admin
-const createAdmin = catchAsync(
-  async (req: Request, res: Response) => {
-    const { ...userData } = req.body;
-    const data = await UserService.createAdminToDB(userData);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: "Admin created successfully",
-      data: data,
     });
   }
 );
@@ -75,6 +61,21 @@ const updateProfile = catchAsync(
         statusCode: 400,
         message: "Phone number cannot be changed",
       });
+    }
+
+    // Website / social link: format theek karo, ghalat ho to save na karo.
+    // Yahan isliye ke body kabhi `data` JSON string mein aati hai aur
+    // validateRequest parsed value wapas req.body mein nahi likhta.
+    if (bodyData.website !== undefined) {
+      const website = normalizeWebsiteUrl(bodyData.website);
+      if (!website.ok) {
+        return sendResponse(res, {
+          success: false,
+          statusCode: 400,
+          message: website.error,
+        });
+      }
+      bodyData.website = website.url;
     }
     // FIX: multer ab memoryStorage par hai, `filename` undefined hota tha
     // aur DB mein "/images/undefined" save ho raha tha. Ab middleware ka
@@ -173,10 +174,8 @@ const getUserSummaryCounts = catchAsync(async (req: Request, res: Response) => {
 
 export const UserController = {
   createUser,
-  createAdmin,
   getUserProfile,
   updateProfile,
   getUserOnlineStatus,
   getUserSummaryCounts
-
 };

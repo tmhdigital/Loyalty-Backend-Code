@@ -1,34 +1,6 @@
 import { z } from "zod";
 import { USER_ROLES } from "../../../enums/user";
 
-const createAdminZodSchema = z.object({
-  body: z.object({
-    name: z.string({
-      required_error: "Name is required",
-    }),
-
-    email: z
-      .string({
-        required_error: "Email is required",
-      })
-      .email({
-        message: "Invalid email address",
-      }),
-
-    password: z.string({
-      required_error: "Password is required",
-    }),
-
-    role: z.enum([
-      USER_ROLES.SUPER_ADMIN,
-      USER_ROLES.ADMIN,
-      USER_ROLES.USER,
-    ]),
-
-    fcmToken: z.string().optional(),
-  }),
-});
-
 const createUserZodSchema = z.object({
   body: z.object({
     firstName: z.string({
@@ -159,7 +131,6 @@ const updateUserZodSchema = z.object({
 });
 
 export const UserValidation = {
-  createAdminZodSchema,
   createUserZodSchema,
   updateUserZodSchema,
 };
