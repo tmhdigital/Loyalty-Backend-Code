@@ -32,6 +32,7 @@ import { MerchantUserManagement } from "../modules/merchantUserManagement/mercha
 
 import { DisclaimerRoutes } from "../modules/disclaimer/disclaimer.route";
 import { TransactionRoute } from "../modules/transactionHistory/transaction.routes";
+import { AppFeedbackRoutes } from "../modules/appFeedback/appFeedback.routes";
 
 
 const router = express.Router();
@@ -41,6 +42,7 @@ const apiRoutes = [
   { path: "/admin", route: AdminRoutes },
   { path: "/admin-promo", route: AdminPromoMerchantRoutes },
   { path: "/admin-tier", route: AdminTierRoutes },
+  { path: "/app-feedback", route: AppFeedbackRoutes },
   { path: "/auth", route: AuthRoutes },
   { path: "/audit", route: AuditRoutes },
   { path: "/contact", route: contactUsRoutes },
