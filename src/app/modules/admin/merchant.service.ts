@@ -101,6 +101,7 @@ const getAllMerchants = async (query: Record<string, unknown>, user: any) => {
       "businessName",
       "service",
       "address",
+      "displayAddress",
       "customUserId",
       "country",
       "city",

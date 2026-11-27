@@ -122,6 +122,13 @@ const updateUserZodSchema = z.object({
 
 
     zodiacPreference: z.string().optional(),
+
+    displayAddress: z
+      .string()
+      .trim()
+      .min(1, "Display address is required")
+      .max(40, "Display address must not exceed 40 characters")
+      .optional(),
   }),
 });
 

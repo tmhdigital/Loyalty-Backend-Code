@@ -120,6 +120,8 @@ const userSchema = new Schema<IUser, UserModal>(
 
     photo: { type: String, default: null },
     address: { type: String },
+    // Customer app merchant card par "Display Address | City" dikhta hai.
+    displayAddress: { type: String, trim: true, maxlength: 40 },
 
     verified: { type: Boolean, default: false },
 
