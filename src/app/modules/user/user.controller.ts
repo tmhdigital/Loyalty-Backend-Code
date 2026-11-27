@@ -36,6 +36,7 @@ const PROFILE_UPDATABLE_FIELDS = [
   "businessName",
   "website",
   "address",
+  "displayAddress",
   "service",
   "country",
   "city",
@@ -71,6 +72,45 @@ const pickFields = (
     }
   }
   return picked;
+};
+
+const DISPLAY_ADDRESS_MAX_LENGTH = 40;
+const DISPLAY_ADDRESS_FORM_FIELDS = ["businessName", "city", "country"];
+
+const applyDisplayAddressRule = (
+  bodyData: Record<string, any>,
+  role?: string
+) => {
+  if (role !== USER_ROLES.MERCHANT) {
+    delete bodyData.displayAddress;
+    return;
+  }
+
+  if (bodyData.displayAddress !== undefined) {
+    bodyData.displayAddress = String(bodyData.displayAddress ?? "").trim();
+  }
+
+  const isProfileForm = DISPLAY_ADDRESS_FORM_FIELDS.some(
+    (field) => bodyData[field] !== undefined
+  );
+
+  // Bheja gaya ho to khaali nahi ho sakta; form save par zaroori hai.
+  if (
+    (bodyData.displayAddress !== undefined || isProfileForm) &&
+    !bodyData.displayAddress
+  ) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "Display address is required");
+  }
+
+  if (
+    bodyData.displayAddress &&
+    bodyData.displayAddress.length > DISPLAY_ADDRESS_MAX_LENGTH
+  ) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Display address must not exceed ${DISPLAY_ADDRESS_MAX_LENGTH} characters`
+    );
+  }
 };
 
 // register user
@@ -146,6 +186,12 @@ const updateProfile = catchAsync(
     ) {
       throw new ApiError(StatusCodes.BAD_REQUEST, WEBSITE_URL_MESSAGES.required);
     }
+
+    // Display Address: sirf merchant ke liye. Shop Info / Profile form
+    // (businessName, city ya country ke saath) bina iske save nahi hota.
+    // Location step (sirf address) aur FCM jaise updates par lagu nahi.
+    applyDisplayAddressRule(bodyData, (user as JwtPayload)?.role);
+
     // FIX: multer ab memoryStorage par hai, `filename` undefined hota tha
     // aur DB mein "/images/undefined" save ho raha tha. Ab middleware ka
     // set kiya hua poora CDN URL use hota hai.

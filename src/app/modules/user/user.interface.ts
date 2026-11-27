@@ -145,6 +145,8 @@ export interface IUser {
   preferences?: string[];
   about?: string;
   address?: string;
+  // Short area shown on the customer app merchant card, e.g. "Bahria Enclave Phase 7"
+  displayAddress?: string;
   location?: {
     type: "Point";
     coordinates: number[];

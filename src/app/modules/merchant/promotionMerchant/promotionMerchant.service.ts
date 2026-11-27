@@ -155,7 +155,10 @@ const getDetailsOfMerchant = async (merchantId: string, userId?: string) => {
   const [merchant, user] = await Promise.all([
     User.findById(merchantId)
       // photo = cover photo (uploaded as `coverPhoto` from the dashboard)
-      .select("firstName businessName location profile photo website")
+      // address/displayAddress/city/country: details screen par poora pata + mulk
+      .select(
+        "firstName businessName location profile photo website address displayAddress city country"
+      )
       .lean(),
     userId ? User.findById(userId).select("status").lean() : Promise.resolve(null),
   ]);
