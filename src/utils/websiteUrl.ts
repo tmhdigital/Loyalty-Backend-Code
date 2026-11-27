@@ -1,3 +1,6 @@
+import { StatusCodes } from "http-status-codes";
+import ApiError from "../errors/ApiErrors";
+
 /**
  * Merchant "website" field: website ya social media profile link.
  *
@@ -17,8 +20,6 @@ export const WEBSITE_URL_MESSAGES = {
   required: "Please enter your website or social media link.",
   spaces: "The link must not contain spaces.",
   tooLong: "The link is too long.",
-  handle:
-    "Please enter the full profile link, for example instagram.com/yourbusiness.",
   invalid:
     "Please enter a valid website or social media link, for example rewaldo.com.",
   profileMissing:
@@ -67,8 +68,12 @@ export const normalizeWebsiteUrl = (raw: unknown): WebsiteUrlResult => {
   if (value.length > MAX_LENGTH) {
     return { ok: false, error: WEBSITE_URL_MESSAGES.tooLong };
   }
+  // `@handle` aur backslash: teeno platforms par ek jaisa reject (Dart parity).
   if (value.startsWith("@")) {
-    return { ok: false, error: WEBSITE_URL_MESSAGES.handle };
+    return { ok: false, error: WEBSITE_URL_MESSAGES.profileMissing };
+  }
+  if (value.includes("\\")) {
+    return { ok: false, error: WEBSITE_URL_MESSAGES.invalid };
   }
 
   // `https://https://...` jaise double prefix bhi hat jayein.
@@ -76,6 +81,12 @@ export const normalizeWebsiteUrl = (raw: unknown): WebsiteUrlResult => {
     value = value.replace(PROTOCOL_PREFIX, "");
   }
   if (!value || OTHER_SCHEME.test(value)) {
+    return { ok: false, error: WEBSITE_URL_MESSAGES.invalid };
+  }
+
+  // Non-English domain Dart mein support nahi, is liye yahan bhi reject.
+  const authority = value.split(/[/?#]/)[0];
+  if (/[^\x21-\x7e]/.test(authority)) {
     return { ok: false, error: WEBSITE_URL_MESSAGES.invalid };
   }
 
@@ -104,4 +115,27 @@ export const normalizeWebsiteUrl = (raw: unknown): WebsiteUrlResult => {
     return { ok: false, error: WEBSITE_URL_MESSAGES.tooLong };
   }
   return { ok: true, url: normalized };
+};
+
+/**
+ * Payload mein `website` ho to saaf karke wapas likhta hai, ghalat ho to 400.
+ * `allowEmpty`: admin raste jahan khali value ka matlab "kuch na badlo" hai.
+ */
+export const applyWebsiteToPayload = (
+  payload: Record<string, any>,
+  { allowEmpty = false }: { allowEmpty?: boolean } = {}
+) => {
+  if (!payload || payload.website === undefined) return;
+
+  const isEmpty =
+    payload.website === null ||
+    (typeof payload.website === "string" && !payload.website.trim());
+  if (allowEmpty && isEmpty) {
+    delete payload.website;
+    return;
+  }
+
+  const result = normalizeWebsiteUrl(payload.website);
+  if (!result.ok) throw new ApiError(StatusCodes.BAD_REQUEST, result.error);
+  payload.website = result.url;
 };

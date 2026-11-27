@@ -8,6 +8,8 @@ const recentViewedPromotionSchema = new mongoose.Schema<IRecentViewedPromotion>(
       ref: "User",
       required: true,
     },
+    // Newest first. Size is capped atomically in the service
+    // (RECENT_VIEWED_MAX_STORED), so no pre-save hook is needed.
     items: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -18,28 +20,8 @@ const recentViewedPromotionSchema = new mongoose.Schema<IRecentViewedPromotion>(
   { timestamps: true }
 );
 
-
-
-/**
- * 🚀 CORE INDEX
- */
+// One document per user.
 recentViewedPromotionSchema.index({ userId: 1 }, { unique: true });
-
-/**
- * ⚡ PRE-SAVE HOOK: enforce max 20 items
- */
-recentViewedPromotionSchema.pre("save", function (next) {
-  if (this.items && this.items.length > 20) {
-    // keep only latest 20
-    this.items = this.items.slice(-20);
-  }
-  next();
-});
-
-/**
- * ⚡ OPTIONAL: safer update pattern for $push
- * (recommended for high traffic systems)
- */
 recentViewedPromotionSchema.index({ updatedAt: -1 });
 
 export const RecentViewedPromotion = mongoose.model<IRecentViewedPromotion>(

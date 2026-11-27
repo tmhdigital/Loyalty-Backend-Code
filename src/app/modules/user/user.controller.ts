@@ -6,15 +6,76 @@ import sendResponse from "../../../shared/sendResponse";
 import ApiError from "../../../errors/ApiErrors";
 import { JwtPayload } from "jsonwebtoken";
 import { getSingleFileUrl } from "../../../shared/getFilePath";
-import { normalizeWebsiteUrl } from "../../../utils/websiteUrl";
+import {
+  applyWebsiteToPayload,
+  WEBSITE_URL_MESSAGES,
+} from "../../../utils/websiteUrl";
+import { USER_ROLES } from "../../../enums/user";
+
+// SECURITY: signup par sirf yeh fields. Pehle poori body save hoti thi, is
+// liye koi bhi `verified: true`, `status`, `points` waghera bhej sakta tha.
+const SIGNUP_FIELDS = [
+  "firstName",
+  "lastName",
+  "phone",
+  "email",
+  "password",
+  "role", // Zod sirf MERCHANT / USER allow karta hai
+  "country",
+  "city",
+  "referredId",
+] as const;
+
+// SECURITY: user apne profile mein sirf yeh fields badal sakta hai.
+// role, status, verified, approveStatus, subscription, paymentStatus,
+// isDeleted, points, email, referenceId waghera yahan se nahi badal sakte.
+const PROFILE_UPDATABLE_FIELDS = [
+  "firstName",
+  "lastName",
+  "businessName",
+  "website",
+  "address",
+  "service",
+  "country",
+  "city",
+  "about",
+  "gender",
+  "latitude",
+  "longitude",
+  "location",
+  "fcmToken",
+  "appId",
+  "notificationSettings",
+  "preferences",
+] as const;
+
+const NOTIFICATION_SETTING_KEYS = [
+  "promotionalEmails",
+  "appNotifications",
+  "smsNotifications",
+  "referralNotifications",
+  "subscriptionNotifications",
+  "pushNotifications",
+];
+
+const pickFields = (
+  source: Record<string, any> | undefined,
+  fields: readonly string[]
+): Record<string, any> => {
+  const picked: Record<string, any> = {};
+  if (!source || typeof source !== "object") return picked;
+  for (const field of fields) {
+    if (Object.prototype.hasOwnProperty.call(source, field)) {
+      picked[field] = source[field];
+    }
+  }
+  return picked;
+};
 
 // register user
 const createUser = catchAsync(
   async (req: Request, res: Response) => {
-    const userData = {
-      ...req.body,
-      //   gender: req.body.gender || "Unknown",
-    };
+    const userData = pickFields(req.body, SIGNUP_FIELDS);
 
     const data = await UserService.createUserToDB(userData);
 
@@ -50,12 +111,12 @@ const updateProfile = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user;
 
-    let bodyData = req.body;
+    let rawBody = req.body;
     if (typeof req.body.data === "string") {
-      bodyData = JSON.parse(req.body.data);
+      rawBody = JSON.parse(req.body.data);
     }
 
-      if (bodyData.phone) {
+      if (rawBody.phone) {
       return sendResponse(res, {
         success: false,
         statusCode: 400,
@@ -63,19 +124,24 @@ const updateProfile = catchAsync(
       });
     }
 
-    // Website / social link: format theek karo, ghalat ho to save na karo.
+    // SECURITY: sirf yehi fields user khud badal sakta hai. Pehle poori body
+    // DB mein jaati thi, jis se koi bhi apna role / status / verified badal
+    // sakta tha (aur `data` JSON string ke zariye Zod check bhi skip hota tha).
+    const bodyData = pickFields(rawBody, PROFILE_UPDATABLE_FIELDS);
+
+    // Website / social link: format theek karo, ghalat ho to 400.
     // Yahan isliye ke body kabhi `data` JSON string mein aati hai aur
     // validateRequest parsed value wapas req.body mein nahi likhta.
-    if (bodyData.website !== undefined) {
-      const website = normalizeWebsiteUrl(bodyData.website);
-      if (!website.ok) {
-        return sendResponse(res, {
-          success: false,
-          statusCode: 400,
-          message: website.error,
-        });
-      }
-      bodyData.website = website.url;
+    applyWebsiteToPayload(bodyData);
+
+    // Merchant ka profile/shop form (businessName ke saath) bina website ke
+    // save nahi hota. FCM token, location jaise chhote updates par lagu nahi.
+    if (
+      (user as JwtPayload)?.role === USER_ROLES.MERCHANT &&
+      bodyData.businessName !== undefined &&
+      bodyData.website === undefined
+    ) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, WEBSITE_URL_MESSAGES.required);
     }
     // FIX: multer ab memoryStorage par hai, `filename` undefined hota tha
     // aur DB mein "/images/undefined" save ho raha tha. Ab middleware ka
@@ -93,24 +159,16 @@ const updateProfile = catchAsync(
     }
 
 
-      /** 🔔 Notification settings safe update */
-  const notificationUpdate: Record<string, boolean> = {};
-
-    if (bodyData.notificationSettings) {
-      // Loop through notificationSettings
+    /** 🔔 Notification settings safe update (sirf maloom keys) */
+    const notificationUpdate: Record<string, boolean> = {};
+    if (bodyData.notificationSettings && typeof bodyData.notificationSettings === "object") {
       for (const [key, value] of Object.entries(bodyData.notificationSettings)) {
-       
-        if (typeof value === "string") {
-          notificationUpdate[`notificationSettings.${key}`] = value.toLowerCase() === "true";
-        } else {
-       
-          notificationUpdate[`notificationSettings.${key}`] = value as boolean;
-        }
+        if (!NOTIFICATION_SETTING_KEYS.includes(key)) continue;
+        notificationUpdate[`notificationSettings.${key}`] =
+          typeof value === "string" ? value.toLowerCase() === "true" : Boolean(value);
       }
-
-  
-  delete bodyData.notificationSettings;
-}
+    }
+    delete bodyData.notificationSettings;
 
     const profileData = {
       profile,

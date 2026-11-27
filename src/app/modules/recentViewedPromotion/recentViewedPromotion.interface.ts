@@ -1,12 +1,9 @@
 import { Types, Document, Model } from "mongoose";
 
-export interface IRecentViewedItem {
-  promotionId: Types.ObjectId;
-}
-
 export interface IRecentViewedPromotion extends Document {
   userId: Types.ObjectId;
-  items: IRecentViewedItem[];
+  // Promotion ids, newest first.
+  items: Types.ObjectId[];
 }
 
 export type RecentViewedPromotionModel = Model<IRecentViewedPromotion>;

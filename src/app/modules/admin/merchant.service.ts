@@ -3,6 +3,7 @@ import { User } from "../user/user.model";
 import { APPROVE_STATUS, USER_ROLES, USER_STATUS } from "../../../enums/user";
 import ApiError from "../../../errors/ApiErrors";
 import QueryBuilder from "../../../utils/queryBuilder";
+import { applyWebsiteToPayload } from "../../../utils/websiteUrl";
 import { sendNotification } from "../../../helpers/notificationsHelper";
 import { NotificationType } from "../notification/notification.model";
 import { Types } from "mongoose";
@@ -279,6 +280,9 @@ const getSingleMerchant = async (id: string) => {
 };
 
 const updateMerchant = async (id: string, payload: Record<string, unknown>) => {
+  // Website / social link: wahi rule jo merchant ke apne profile par hai.
+  applyWebsiteToPayload(payload, { allowEmpty: true });
+
   const merchant = await User.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,

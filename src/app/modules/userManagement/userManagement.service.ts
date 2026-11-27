@@ -12,6 +12,7 @@ import { User } from "../user/user.model";
 import { generateCustomUserId } from "../user/user.utils";
 import { createUniqueReferralId } from "../../../utils/generateReferralId";
 import QueryBuilder from "../../../utils/queryBuilder";
+import { applyWebsiteToPayload } from "../../../utils/websiteUrl";
 import { emailHelper } from "../../../helpers/emailHelper";
 import { emailTemplate } from "../../../shared/emailTemplate";
 
@@ -95,6 +96,9 @@ const createMerchantToDB = async (payload: any, creatorUser: any) => {
   if (!payload.password) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Password is required");
   }
+
+  // Website / social link: wahi rule jo merchant ke apne profile par hai.
+  applyWebsiteToPayload(payload, { allowEmpty: true });
 
   // uniqueness check
   if (await User.isExistUserByEmail(payload.email)) {
@@ -318,6 +322,9 @@ const updateMerchant = async (
   id: string,
   payload: Partial<IUser>
 ) => {
+  // Website / social link: wahi rule jo merchant ke apne profile par hai.
+  applyWebsiteToPayload(payload as Record<string, any>, { allowEmpty: true });
+
   const merchant = await User.findOneAndUpdate(
     { _id: id, role: USER_ROLES.MERCHANT },
     payload,
