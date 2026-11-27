@@ -287,7 +287,13 @@ const getUserOnlineStatusFromDB = async (userId: string) => {
 
 const getUserSummaryCountsFromDB = async (userId: string) => {
   // 1️⃣ Fetch subscriptions with package title
+  // Oldest → newest purchase. The customer app shows the LAST title as the
+  // current plan in the home top bar. Without an explicit sort MongoDB used
+  // the { user, status } index and returned "active" rows before "expired"
+  // ones, so an expired Free Trial ended up last and was shown instead of
+  // the plan the user just bought.
   const subscriptions = await Subscription.find({ user: userId })
+    .sort({ currentPeriodStart: 1, createdAt: 1 })
     .populate("package", "title")
     .lean();
 
