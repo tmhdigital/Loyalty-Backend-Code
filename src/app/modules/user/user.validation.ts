@@ -55,13 +55,8 @@ const updateUserZodSchema = z.object({
 
     fcmToken: z.string().optional(),
 
-    role: z
-      .enum([
-        USER_ROLES.SUPER_ADMIN,
-        USER_ROLES.ADMIN,
-        USER_ROLES.USER,
-      ])
-      .optional(),
+    // `role` yahan jaan boojh kar nahi hai: profile update se role kabhi nahi
+    // badalta (controller ka whitelist bhi isay hata deta hai).
 
     email: z
       .string()

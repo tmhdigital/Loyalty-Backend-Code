@@ -369,8 +369,9 @@ const getCombinePromotionsForUserFromDB = async (userId: string) => {
     if (promo.customerSegment === "all_customer" || promo.customerSegment === userSegment) {
       merchantPromotions.push({
         ...promo,
-        // Recent-viewed API jaisi shape: { _id, website }
-        merchantId: { _id: promo.merchantId, website: merchantWebsiteMap.get(merchantKey) },
+        // `merchantId` ki shape (sirf ID) jaan boojh kar nahi badli, taake store
+        // par maujood purane app versions na tootein. Link alag field mein.
+        merchantWebsite: merchantWebsiteMap.get(merchantKey) ?? null,
         source: "merchant",
         userSegment,
       });
