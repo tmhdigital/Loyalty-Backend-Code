@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { UserService } from "./user.service";
+import { CreateUserPayload } from "./user.interface";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import ApiError from "../../../errors/ApiErrors";
@@ -75,7 +76,9 @@ const pickFields = (
 // register user
 const createUser = catchAsync(
   async (req: Request, res: Response) => {
-    const userData = pickFields(req.body, SIGNUP_FIELDS);
+    // Body is already checked by createUserZodSchema in the route; pickFields
+    // only drops keys that are not allowed at signup.
+    const userData = pickFields(req.body, SIGNUP_FIELDS) as CreateUserPayload;
 
     const data = await UserService.createUserToDB(userData);
 
